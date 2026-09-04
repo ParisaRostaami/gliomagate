@@ -16,12 +16,19 @@ CLASSES = (0, 1, 2)
 
 
 def conv_stem(image: np.ndarray) -> np.ndarray:
-    """Fixed convolutional front-end (U-Net-style skip of local + gradient + scale)."""
+    """Fixed convolutional front-end: intensity, scale, edges, coordinates."""
+    from scipy.ndimage import uniform_filter
+
     g1 = gaussian_filter(image, 1.0)
     g2 = gaussian_filter(image, 2.5)
+    g4 = gaussian_filter(image, 5.0)
     sx = sobel(image, axis=1)
     sy = sobel(image, axis=0)
     mag = np.hypot(sx, sy)
+    local = uniform_filter(image, 9)
+    high = image - g2
+    p90 = float(np.percentile(image, 90))
+    bright = (image >= p90).astype(np.float32)
     h, w = image.shape
     yy, xx = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
     x_n = (xx / (w - 1)) * 2 - 1
@@ -33,7 +40,11 @@ def conv_stem(image: np.ndarray) -> np.ndarray:
             image,
             g1,
             g2,
+            g4,
             mag,
+            local,
+            high,
+            bright,
             x_n,
             y_n,
             left,
@@ -126,19 +137,20 @@ def train_segmenter(images: list[np.ndarray], masks: list[np.ndarray], seed: int
         # subsample background so tumor pixels are not drowned
         idx_fg = np.flatnonzero(lab > 0)
         idx_bg = np.flatnonzero(lab == 0)
-        take_bg = rng.choice(idx_bg, size=min(len(idx_bg), max(400, 2 * len(idx_fg))), replace=False)
+        take_bg = rng.choice(idx_bg, size=min(len(idx_bg), max(800, 3 * len(idx_fg))), replace=False)
         take = np.concatenate([idx_fg, take_bg])
         xs.append(feat[take])
         ys.append(lab[take])
     x = np.concatenate(xs)
     y = np.concatenate(ys)
     mlp = MLPClassifier(
-        hidden_layer_sizes=(48,),
+        hidden_layer_sizes=(96, 32),
         activation="relu",
-        max_iter=160,
+        max_iter=220,
         random_state=seed,
         alpha=1e-4,
         verbose=False,
+        early_stopping=False,
     )
     print(f"  MLPClassifier on {len(x)} subsampled pixels...")
     mlp.fit(x, y)
@@ -185,7 +197,18 @@ def dice_score(pred: np.ndarray, gt: np.ndarray, cls: int) -> float:
 
 
 def mean_tumor_dice(pred: np.ndarray, gt: np.ndarray) -> float:
-    return float(np.mean([dice_score(pred, gt, 1), dice_score(pred, gt, 2)]))
+    """Dice on tumor vs background. If edema and core are both present, average those two classes."""
+    has_core = bool((gt == 2).any() or (pred == 2).any())
+    has_ed = bool((gt == 1).any() or (pred == 1).any())
+    if has_core and has_ed:
+        return float(np.mean([dice_score(pred, gt, 1), dice_score(pred, gt, 2)]))
+    p = pred > 0
+    g = gt > 0
+    inter = float((p & g).sum())
+    denom = float(p.sum() + g.sum())
+    if denom == 0:
+        return 1.0
+    return 2.0 * inter / denom
 
 
 def image_findings(mask: np.ndarray) -> dict:
@@ -203,9 +226,13 @@ def image_findings(mask: np.ndarray) -> dict:
     laterality = "left" if cx < (SIZE / 2) else "right"
     core = int((mask == 2).sum())
     edema = int((mask == 1).sum())
+    if core > 0:
+        enhancement = bool(core > 0.15 * max(core + edema, 1))
+    else:
+        enhancement = bool(tumor.sum() >= 8)
     return {
         "laterality": laterality,
-        "enhancement": core > 0.15 * max(core + edema, 1),
+        "enhancement": enhancement,
         "volume_proxy_px": int(tumor.sum()),
         "core_fraction": float(core / max(core + edema, 1)),
         "centroid_xy": (float(xs.mean()), float(ys.mean())),

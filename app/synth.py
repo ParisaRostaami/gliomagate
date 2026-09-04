@@ -102,6 +102,17 @@ def render_slice(rng: np.random.Generator, laterality: str, lobe: str, enhanceme
 def write_note(case: dict, rng: np.random.Generator | None = None) -> str:
     rng = rng or np.random.default_rng(0)
     lat, lobe, grade, symptom = case["laterality"], case["lobe"], case["grade"], case["symptom"]
+    if lobe == "unknown" or grade == "unknown":
+        enhance = "T1-weighted post-contrast enhancement" if case.get("enhancement", True) else "little contrast uptake"
+        return str(
+            rng.choice(
+                (
+                    f"T1-post-contrast MRI. Enhancing mass {lat} of midline, compatible with glioma. {enhance}. Histologic grade not assigned on this slice.",
+                    f"Neuro-oncology. {lat.capitalize()}-sided enhancing glioma on T1c. Grade, lobe, and presenting symptom are not specified in the record.",
+                    f"Axial T1c. There is a {lat}-sided enhancing lesion consistent with glioma. WHO grade unknown from imaging alone.",
+                )
+            )
+        )
     if case["enhancement"]:
         enhance = rng.choice(
             (

@@ -1,20 +1,23 @@
 {
-  "dice": 0.7681846256408018,
+  "dataset": "Cheng2017 T1c glioma (Figshare 1512427)",
+  "split": "patient-wise",
+  "n_test": 40,
+  "dice": 0.2902573477649568,
   "field_acc": {
-    "laterality": 1.0,
-    "lobe": 0.3125,
-    "grade": 0.65625,
-    "enhancement": 0.90625,
-    "symptom": 0.21875
+    "laterality": 0.925,
+    "lobe": 1.0,
+    "grade": 1.0,
+    "enhancement": 1.0,
+    "symptom": 1.0
   },
-  "field_acc_mean": 0.61875,
-  "ndcg5": 0.8045199347938826,
-  "recall5": 0.8125,
-  "grounded_fraction": 0.8625,
-  "contradiction_rate": 0.0,
+  "field_acc_mean": 0.985,
+  "ndcg5": 0.8986902076195168,
+  "recall5": 0.0,
+  "grounded_fraction": 0.4,
+  "contradiction_rate": 0.225,
   "ablation": {
-    "full_field_acc": 0.61875,
-    "no_image_field_acc": 0.5562499999999999,
-    "no_rag_grounded_fraction": 0.34375
+    "full_field_acc": 0.9850000000000001,
+    "no_image_field_acc": 1.0,
+    "no_rag_grounded_fraction": 0.355
   }
 }

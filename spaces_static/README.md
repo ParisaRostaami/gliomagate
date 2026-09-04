@@ -9,6 +9,6 @@ pinned: false
 
 # GliomaGate
 
-MRI-like slice + consult note → tumor overlay, structured fields, and an evidence ledger.
+Cheng 2017 T1-post-contrast glioma slices plus a short note. Tumor overlay, structured fields, evidence ledger.
 
-Samples on this page are from the trained models in the repo. Source and FastAPI service: [github.com/ParisaRostaami/gliomagate](https://github.com/ParisaRostaami/gliomagate)
+Held-out Dice 0.29, laterality 0.93. Source: [github.com/ParisaRostaami/gliomagate](https://github.com/ParisaRostaami/gliomagate)

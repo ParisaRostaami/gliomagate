@@ -61,7 +61,15 @@ def main() -> None:
     metrics = json.loads((ROOT / "models" / "metrics.json").read_text(encoding="utf-8"))
     bench = json.loads((ROOT / "models" / "bench.json").read_text(encoding="utf-8"))
     payload = {"metrics": metrics, "bench": bench, "samples": samples}
-    (OUT / "results.js").write_text("window.GLIOMA = " + json.dumps(payload) + ";", encoding="utf-8")
+    def _json(o):
+        if hasattr(o, "item"):
+            return o.item()
+        raise TypeError(type(o))
+
+    (OUT / "results.js").write_text(
+        "window.GLIOMA = " + json.dumps(payload, default=_json) + ";",
+        encoding="utf-8",
+    )
     print("wrote", OUT / "results.js", "bytes", (OUT / "results.js").stat().st_size)
 
 

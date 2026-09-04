@@ -23,7 +23,7 @@ from app.ground import assemble_ledger
 from app.lora_extract import extract, load_lora
 from app.rag import GuidelineIndex
 from app.segment import image_findings, load_segmenter, predict_mask_mlp
-from app.synth import SIZE, generate_split, render_slice
+from app.synth import SIZE, load_case, load_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
 MODELS = ROOT / "models"
@@ -53,10 +53,11 @@ def overlay_rgb(image: np.ndarray, mask: np.ndarray) -> np.ndarray:
     rgb = np.stack([image, image, image], axis=-1)
     rgb = (np.clip(rgb, 0, 1) * 255).astype(np.uint8)
     out = rgb.copy()
-    edema = mask == 1
-    core = mask == 2
-    out[edema] = (0.45 * rgb[edema] + 0.55 * np.array([40, 180, 120])).astype(np.uint8)
-    out[core] = (0.35 * rgb[core] + 0.65 * np.array([220, 70, 80])).astype(np.uint8)
+    if (mask == 2).any():
+        out[mask == 1] = (0.45 * rgb[mask == 1] + 0.55 * np.array([40, 180, 120])).astype(np.uint8)
+        out[mask == 2] = (0.35 * rgb[mask == 2] + 0.65 * np.array([220, 70, 80])).astype(np.uint8)
+    else:
+        out[mask > 0] = (0.35 * rgb[mask > 0] + 0.65 * np.array([220, 70, 80])).astype(np.uint8)
     return out
 
 
@@ -105,28 +106,17 @@ def metrics():
 
 @app.get("/v1/sample")
 def sample(seed: int = 0):
-    rng = np.random.default_rng(seed)
-    laterality = "left" if seed % 2 == 0 else "right"
-    lobe = ("frontal", "temporal", "parietal", "occipital", "insular")[seed % 5]
-    enhancement = seed % 3 != 1
-    image, labels = render_slice(rng, laterality, lobe, enhancement)
-    from app.synth import write_note
-
-    note = write_note(
-        {
-            "laterality": laterality,
-            "lobe": lobe,
-            "grade": "4" if enhancement else "2",
-            "enhancement": enhancement,
-            "symptom": "seizure",
-        },
-        rng,
-    )
+    rows = load_manifest(ROOT / "data" / "test")
+    if not rows:
+        raise HTTPException(500, "No test slices. Run python scripts/train.py first.")
+    meta = rows[int(seed) % len(rows)]
+    image, labels, m = load_case(ROOT / "data" / "test", meta["case_id"])
     return {
         "image_png": _png_b64(image),
-        "note": note,
+        "note": m["note"],
         "seed": seed,
-        "hint": {"laterality": laterality, "lobe": lobe, "enhancement": enhancement},
+        "case_id": m["case_id"],
+        "hint": {"laterality": m.get("laterality"), "pid": m.get("pid")},
     }
 
 
@@ -161,8 +151,9 @@ async def infer(
         if image is not None and image.filename:
             arr = decode_image(await image.read())
         elif seed is not None:
-            rng = np.random.default_rng(int(seed))
-            arr, _ = render_slice(rng, "left" if int(seed) % 2 == 0 else "right", "temporal", True)
+            rows = load_manifest(ROOT / "data" / "test")
+            meta = rows[int(seed) % len(rows)]
+            arr, _, _ = load_case(ROOT / "data" / "test", meta["case_id"])
         else:
             raise HTTPException(400, "Provide an image upload or a sample seed")
         if not note.strip():
@@ -183,7 +174,12 @@ def eval_cached():
 
 @app.post("/v1/eval/run")
 def eval_run():
-    """Recompute harness on a fresh 16-case draw (CPU, a few seconds)."""
-    cases = generate_split(16, seed=123, prefix="ev")
+    cases = []
+    for meta in load_manifest(ROOT / "data" / "test")[:16]:
+        img, labels, m = load_case(ROOT / "data" / "test", meta["case_id"])
+        rec = dict(m)
+        rec["image"] = img
+        rec["labels"] = labels
+        cases.append(rec)
     result = run_harness(cases, STATE["mlp"], STATE["lora"])
     return result.as_dict()

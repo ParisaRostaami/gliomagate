@@ -81,7 +81,11 @@ def assemble_ledger(
         "fields": ledger,
         "contradictions": contradictions,
         "grounded_fraction": round(grounded_frac, 3),
-        "image_findings": {k: findings[k] for k in findings if k != "centroid_xy"},
+        "image_findings": {
+            k: (bool(v) if type(v).__name__ == "bool_" or isinstance(v, bool) else v)
+            for k, v in findings.items()
+            if k != "centroid_xy"
+        },
     }
 
 

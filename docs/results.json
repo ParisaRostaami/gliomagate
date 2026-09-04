@@ -1,109 +1,105 @@
 {
   "harness": {
-    "dice": 0.7681846256408018,
+    "dice": 0.2902573477649568,
     "field_acc": {
-      "laterality": 1.0,
-      "lobe": 0.3125,
-      "grade": 0.65625,
-      "enhancement": 0.90625,
-      "symptom": 0.21875
+      "laterality": 0.925,
+      "lobe": 1.0,
+      "grade": 1.0,
+      "enhancement": 1.0,
+      "symptom": 1.0
     },
-    "field_acc_mean": 0.61875,
-    "ndcg5": 0.8045199347938826,
-    "recall5": 0.8125,
-    "grounded_fraction": 0.8625,
-    "contradiction_rate": 0.0,
+    "field_acc_mean": 0.985,
+    "ndcg5": 0.8986902076195168,
+    "recall5": 0.0,
+    "grounded_fraction": 0.4,
+    "contradiction_rate": 0.225,
     "ablation": {
-      "full_field_acc": 0.61875,
-      "no_image_field_acc": 0.5562499999999999,
-      "no_rag_grounded_fraction": 0.34375
+      "full_field_acc": 0.9850000000000001,
+      "no_image_field_acc": 1.0,
+      "no_rag_grounded_fraction": 0.355
     }
   },
-  "dice_mean": 0.7681846256408018,
-  "dice_p10": 0.4590288377678452,
-  "dice_p90": 0.9864525377665995,
+  "dice_mean": 0.2902573477649568,
+  "dice_p10": 0.0,
+  "dice_p90": 0.6669752930888165,
   "latency": {
-    "n": 96,
-    "p50_ms": 25.65,
-    "p95_ms": 33.07,
-    "mean_ms": 25.91
+    "n": 120,
+    "p50_ms": 33.1,
+    "p95_ms": 40.14,
+    "mean_ms": 33.85
   },
   "example_case": "te-0002",
   "example_ledger": {
     "fields": {
       "laterality": {
-        "value": "right",
-        "confidence": 0.938,
+        "value": "left",
+        "confidence": 0.886,
         "provenance": "image",
         "evidence": [
-          "mask centroid is on the right half of the slice",
+          "mask centroid is on the left half of the slice",
           "supported by retrieved guideline span"
         ]
       },
       "lobe": {
-        "value": "temporal",
-        "confidence": 0.276,
-        "provenance": "retrieval",
-        "evidence": [
-          "supported by retrieved guideline span"
-        ]
+        "value": "unknown",
+        "confidence": 0.993,
+        "provenance": "ungrounded",
+        "evidence": []
       },
       "grade": {
-        "value": "4",
-        "confidence": 0.494,
-        "provenance": "retrieval",
+        "value": "unknown",
+        "confidence": 0.988,
+        "provenance": "ungrounded",
         "evidence": [
-          "supported by retrieved guideline span"
+          "grade is not image-groundable from a single slice"
         ]
       },
       "enhancement": {
         "value": "yes",
-        "confidence": 0.676,
+        "confidence": 0.989,
         "provenance": "image",
         "evidence": [
-          "core fraction=0.28 volume_px=1194",
+          "core fraction=0.00 volume_px=617",
           "supported by retrieved guideline span"
         ]
       },
       "symptom": {
-        "value": "seizure",
-        "confidence": 0.25,
-        "provenance": "retrieval",
-        "evidence": [
-          "supported by retrieved guideline span"
-        ]
+        "value": "unknown",
+        "confidence": 0.989,
+        "provenance": "ungrounded",
+        "evidence": []
       }
     },
     "contradictions": [],
-    "grounded_fraction": 1.0,
+    "grounded_fraction": 0.4,
     "image_findings": {
-      "laterality": "right",
-      "enhancement": true,
-      "volume_proxy_px": 1194,
-      "core_fraction": 0.2847571189279732
+      "laterality": "left",
+      "enhancement": "True",
+      "volume_proxy_px": 617,
+      "core_fraction": 0.0
     }
   },
   "example_hits": [
     {
+      "id": "seizure-temporal",
+      "title": "Seizure and temporal lobe",
+      "score": 0.17536268484042955
+    },
+    {
       "id": "laterality-eloquent",
       "title": "Laterality and eloquent cortex",
-      "score": 0.22917513345160193
+      "score": 0.1751376139761781
     },
     {
       "id": "tumor-board",
       "title": "Multidisciplinary glioma protocol",
-      "score": 0.22524849921116408
+      "score": 0.17415645573798438
     },
     {
-      "id": "who-cns-2021-gbm",
-      "title": "WHO CNS 2021 glioblastoma",
-      "score": 0.21478916478693696
-    },
-    {
-      "id": "seizure-temporal",
-      "title": "Seizure and temporal lobe",
-      "score": 0.16067859748744123
+      "id": "contradiction-policy",
+      "title": "Cross-modal contradiction policy",
+      "score": 0.13369416695871897
     }
   ],
-  "example_note": "Neuro-oncology. Chief complaint is word-finding difficulty. There is a right-sided frontal mass. The lesion shows avid gadolinium uptake with a necrotic center. This is a high-grade pattern, likely GBM. Please discuss at tumor board. IDH and MGMT pending."
+  "example_note": "Neuro-oncology. Left-sided enhancing glioma on T1c. Grade, lobe, and presenting symptom are not specified in the record."
 }

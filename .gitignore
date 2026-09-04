@@ -6,5 +6,7 @@ htmlcov/
 venv/
 *.pyc
 data/train/
+data/cheng_raw/
+data/cheng_cache/
 .ipynb_checkpoints/
 .DS_Store

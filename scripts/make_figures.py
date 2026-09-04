@@ -22,7 +22,7 @@ from app.lora_extract import extract, load_lora
 from app.main import overlay_rgb
 from app.rag import GuidelineIndex
 from app.segment import image_findings, load_segmenter, mean_tumor_dice, predict_mask_mlp
-from app.synth import generate_split, load_case, load_manifest, save_cases
+from app.synth import load_case, load_manifest
 
 OUT = ROOT / "docs" / "figures"
 MODELS = ROOT / "models"
@@ -45,9 +45,6 @@ def _style() -> None:
 
 
 def load_test_cases(n: int | None = None) -> list[dict]:
-    if not (TEST / "manifest.jsonl").exists():
-        rows = generate_split(32, seed=7, prefix="te")
-        save_cases(rows, TEST)
     rows = []
     for meta in load_manifest(TEST):
         img, labels, m = load_case(TEST, meta["case_id"])
@@ -57,6 +54,8 @@ def load_test_cases(n: int | None = None) -> list[dict]:
         rows.append(rec)
         if n and len(rows) >= n:
             break
+    if not rows:
+        raise FileNotFoundError("data/test is empty. Run python scripts/train.py")
     return rows
 
 
@@ -76,7 +75,7 @@ def gallery(mlp, cases: list[dict], path: Path) -> None:
     axes[0, 0].set_ylabel("slice", fontsize=10)
     axes[1, 0].set_ylabel("gt mask", fontsize=10)
     axes[2, 0].set_ylabel("pred overlay", fontsize=10)
-    fig.suptitle("Held-out slices — ground truth vs GliomaGate overlay (teal edema, red core)", y=0.98)
+    fig.suptitle("Held-out Cheng 2017 T1c glioma (red = predicted tumor)", y=0.98)
     fig.tight_layout()
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
@@ -87,9 +86,9 @@ def dice_hist(mlp, cases: list[dict], path: Path) -> list[float]:
     fig, ax = plt.subplots(figsize=(6.4, 3.8))
     ax.hist(dices, bins=10, color="#355070", edgecolor="white")
     ax.axvline(float(np.mean(dices)), color="#e76f51", lw=2, label=f"mean {np.mean(dices):.2f}")
-    ax.set_xlabel("mean tumor Dice (edema + core)")
+    ax.set_xlabel("tumor Dice")
     ax.set_ylabel("cases")
-    ax.set_title("Segmentation Dice on 32 held-out synthetic slices")
+    ax.set_title("Segmentation Dice on 32 held-out Cheng T1c glioma slices")
     ax.legend(frameon=False)
     fig.tight_layout()
     fig.savefig(path, bbox_inches="tight")

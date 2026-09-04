@@ -1,67 +1,55 @@
 # GliomaGate
 
-One axial MRI-like slice and a short consult note go in. The output is a tumor overlay, a structured report, and an evidence ledger.
+One axial T1-post-contrast slice and a short consult note go in. The output is a tumor overlay, a structured report, and an evidence ledger.
 
-Each field is tagged `image`, `retrieval`, or `ungrounded`. WHO grade is not allowed to come from the slice alone. If the note says left and the mask centroid is right, that is recorded as a contradiction rather than averaged away.
+Each field is tagged `image`, `retrieval`, or `ungrounded`. WHO grade is not allowed to come from the slice alone. If the note says left and the mask centroid is right, that is recorded as a contradiction.
 
-I built this as a public, fully runnable version of the slice-plus-note loop I work on in neuro-oncology. The images are synthetic, not BraTS, so nothing gated has to live in the repo.
+I built this as a public slice-plus-note loop for neuro-oncology. Segmentation is trained on Cheng 2017 T1c glioma MRI (Figshare 1512427), split by patient. Cheng does not include WHO grade or lobe, so those fields are not treated as clinical labels.
 
 **Demo:** [huggingface.co/spaces/Parisa/gliomagate](https://huggingface.co/spaces/Parisa/gliomagate)  
 **Notebook:** [notebooks/gliomagate_results.ipynb](notebooks/gliomagate_results.ipynb)
 
 ## Data
 
-80 train / 32 test slices, 128×128. Each case has an ellipsoidal enhancing core, an edema halo, a bias field, and noise, plus a paraphrased consult note (laterality, lobe, grade, enhancement, symptom). Grade 4 is more common and more often enhancing. The generator is `app/synth.py`.
-
-## Training
+Cheng 2017: 3064 T1c slices from 233 patients (meningioma / glioma / pituitary). This repo uses glioma only. Last run: **240 train / 40 test**, 128×128, patient-wise split. Masks are the published binary tumor outlines. Notes only state laterality and that the lesion is an enhancing glioma.
 
 ```text
+python scripts/download_cheng.py
 python scripts/train.py
 ```
 
-This writes `models/segmenter.joblib`, the LoRA adapters (`models/lora_*.npz`), `models/train_log.json`, and the held-out scores in `models/metrics.json`.
+Cheng, J. brain tumor dataset. Figshare 1512427. CC BY 4.0.
 
-**Segmenter.** Multi-scale conv stem (Gaussian, Sobel, xy coordinates) and a per-pixel MLP. Largest connected component at test time. Fit on 238,866 subsampled pixels, 160 iterations, cross-entropy 0.42 → 0.079. Train Dice **0.86**.
+## Training
 
-**Extractor.** Hash embeddings of the note and the image findings. A rank-8 teacher is trained first; the served student is rank-4 LoRA on a frozen 4-bit-style base, \(y = xW_q + xAB\).
+**Segmenter.** Conv stem + per-pixel MLP, 208 iterations, CE 0.26 → 0.17. Train Dice **0.41** (n=240). This is a 2D pixel classifier, not a U-Net.
 
-| Split | laterality | lobe | grade | enhancement | symptom |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| train | 0.99 | 0.50 | 0.81 | 0.94 | 0.51 |
-| test | 1.00 | 0.31 | 0.66 | 0.91 | 0.22 |
-
-Laterality is easy: the mask centroid and the note usually agree. Lobe and symptom stay lower because the notes are paraphrased, not a single template.
+**Extractor.** Hash embeddings and rank-4 LoRA. Laterality on the held-out patients is **0.93**.
 
 ![Training curves](docs/figures/train_curves.png)
 
-*Left: pixel MLP loss. Right: LoRA student loss per field (sampled during SGD).*
+*Left: pixel MLP loss. Right: LoRA student loss.*
 
-## Held-out results (n = 32)
+## Held-out results (40 slices, 16 patients)
 
-From `models/metrics.json` after training.
+From `models/metrics.json`.
 
 | Metric | Score |
 | --- | ---: |
-| Mean tumor Dice (edema + core) | 0.77 |
-| LoRA field accuracy (mean of 5 fields) | 0.62 |
-| nDCG@5 | 0.80 |
-| Recall@5 (grade-relevant chunk) | 0.81 |
-| Grounded fraction | 0.86 |
-| Grounded fraction without retrieval | 0.34 |
-| Contradiction rate | 0.00 |
-| p50 / p95 latency | 29 / 36 ms |
+| Tumor Dice | 0.29 |
+| Laterality | 0.93 |
+| Contradiction rate (note vs mask laterality) | 0.23 |
+| p95 latency | 40 ms |
 
-![Held-out scores](docs/figures/metrics_bars.png)
-
-![LoRA field accuracy](docs/figures/field_acc.png)
+Dice is low. The predicted overlays are noisy and often the wrong region. That is the current model.
 
 ![Segmentation gallery](docs/figures/gallery.png)
 
-*Top: input. Middle: ground-truth mask (edema = 1, core = 2). Bottom: overlay (teal edema, red core).*
+*Top: Cheng T1c. Middle: published mask. Bottom: prediction (red).*
 
 ![Dice histogram](docs/figures/dice_hist.png)
 
-![Retrieval ablation](docs/figures/ablation.png)
+![Held-out scores](docs/figures/metrics_bars.png)
 
 ![Evidence ledger](docs/figures/ledger.png)
 
@@ -69,11 +57,9 @@ From `models/metrics.json` after training.
 
 ## Method
 
-**Grounding.** Laterality and enhancement may be image-grounded. Grade may only be retrieval-grounded (TF-IDF over a small WHO-style guideline set in `app/rag.py`). Missing both sources → `ungrounded`.
+Laterality and enhancement may be image-grounded. Grade may only be retrieval-grounded (`app/rag.py`). Missing both → `ungrounded`.
 
-**Serving.** FastAPI app on port 7860. `POST /v1/infer` returns the overlay, the ledger, retrieved chunks, and `latency_ms`. `GET /` is the demo UI. `GET /metrics` is Prometheus.
-
-This is a 2D slice model, not a 3D nnU-Net, and the Dice is on synthetic ellipses. `training/train_qlora_t5.py` is a Flan-T5 QLoRA path for a GPU box; it exits cleanly if CUDA is not there.
+FastAPI on port 7860. `POST /v1/infer` returns the overlay, the ledger, retrieved chunks, and `latency_ms`.
 
 ## Run
 
@@ -84,7 +70,6 @@ python scripts/make_figures.py
 python scripts/build_notebook.py
 python -m uvicorn app.main:app --port 7860
 python -m pytest -q --cov=app --cov-fail-under=80
-python scripts/bench.py
 ```
 
 http://127.0.0.1:7860
@@ -94,20 +79,15 @@ docker build -t gliomagate .
 docker run --rm -p 7860:7860 gliomagate
 ```
 
-GCP template: `deploy/cloudrun.yaml`.
-
 ## Layout
 
 ```text
-app/            API, segmenter, LoRA, RAG, grounding, synthetic data
-scripts/        train, figures, bench, notebook
-notebooks/      gliomagate_results.ipynb
-docs/figures/   training curves, gallery, Dice, ablation, ledger, latency
-models/         weights, train_log.json, metrics.json, bench.json
-data/test/      32 held-out cases
-training/       Flan-T5 QLoRA (GPU)
-deploy/
-tests/
+app/            API, segmenter, LoRA, RAG, Cheng loader
+scripts/        download_cheng, train, figures, notebook
+docs/figures/   gallery from the Cheng held-out set
+models/         weights, train_log.json, metrics.json
+data/test/      held-out Cheng slices (after train)
+data/cheng_raw/ Figshare archives (gitignored)
 ```
 
 MIT License

@@ -17,7 +17,8 @@ def cells() -> list:
         new_markdown_cell(
             """# GliomaGate
 
-Load the trained segmenter and LoRA extractor, then evaluate on the 32 held-out slices in `data/test/`. Weights come from `python scripts/train.py`."""
+Cheng 2017 T1-contrast glioma MRI (Figshare 1512427), patient-wise held-out slices.
+Weights from `python scripts/train.py`."""
         ),
         new_code_cell(
             """from pathlib import Path
@@ -70,7 +71,7 @@ plt.show()"""
         new_markdown_cell(
             """## Example case
 
-Synthetic T1c-like slice: edema = 1, enhancing core = 2."""
+T1-weighted post-contrast slice and the published tumor mask."""
         ),
         new_code_cell(
             """rec = cases[2]
