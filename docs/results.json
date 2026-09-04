@@ -1,0 +1,103 @@
+{
+  "harness": {
+    "dice": 0.7901078891007227,
+    "field_acc": {
+      "laterality": 1.0,
+      "lobe": 1.0,
+      "grade": 1.0,
+      "enhancement": 1.0,
+      "symptom": 1.0
+    },
+    "field_acc_mean": 1.0,
+    "ndcg5": 0.7293598302192058,
+    "recall5": 1.0,
+    "grounded_fraction": 0.7875,
+    "contradiction_rate": 0.0,
+    "ablation": {
+      "full_field_acc": 1.0,
+      "no_image_field_acc": 1.0,
+      "no_rag_grounded_fraction": 0.38125
+    }
+  },
+  "dice_mean": 0.7901078891007227,
+  "dice_p10": 0.436696575550988,
+  "dice_p90": 0.9936247906655478,
+  "latency": {
+    "n": 96,
+    "p50_ms": 16.23,
+    "p95_ms": 19.19,
+    "mean_ms": 16.46
+  },
+  "example_case": "te-0002",
+  "example_ledger": {
+    "fields": {
+      "laterality": {
+        "value": "left",
+        "confidence": 0.97,
+        "provenance": "image",
+        "evidence": [
+          "mask centroid is on the left half of the slice"
+        ]
+      },
+      "lobe": {
+        "value": "occipital",
+        "confidence": 0.97,
+        "provenance": "ungrounded",
+        "evidence": []
+      },
+      "grade": {
+        "value": "3",
+        "confidence": 0.94,
+        "provenance": "retrieval",
+        "evidence": [
+          "supported by retrieved guideline span"
+        ]
+      },
+      "enhancement": {
+        "value": "no",
+        "confidence": 0.95,
+        "provenance": "retrieval",
+        "evidence": [
+          "supported by retrieved guideline span"
+        ]
+      },
+      "symptom": {
+        "value": "new headache",
+        "confidence": 0.97,
+        "provenance": "ungrounded",
+        "evidence": []
+      }
+    },
+    "contradictions": [],
+    "grounded_fraction": 0.6,
+    "image_findings": {
+      "laterality": "left",
+      "enhancement": true,
+      "volume_proxy_px": 1321,
+      "core_fraction": 0.16956850870552612
+    }
+  },
+  "example_hits": [
+    {
+      "id": "tumor-board",
+      "title": "Multidisciplinary glioma protocol",
+      "score": 0.3104138314129826
+    },
+    {
+      "id": "who-cns-2021-gbm",
+      "title": "WHO CNS 2021 glioblastoma",
+      "score": 0.19812830107079235
+    },
+    {
+      "id": "seizure-temporal",
+      "title": "Seizure and temporal lobe",
+      "score": 0.17667182094403897
+    },
+    {
+      "id": "who-cns-2021-lgg",
+      "title": "Lower-grade diffuse gliomas",
+      "score": 0.16703773547253994
+    }
+  ],
+  "example_note": "Neuro-oncology consult. New headache prompted MRI. There is a left-sided occipital mass. The lesion shows minimal enhancement. Imaging raises concern for anaplastic (WHO grade 3) histology. I recommend discussion at tumor board and molecular testing (IDH, MGMT) per institutional glioma protocol."
+}

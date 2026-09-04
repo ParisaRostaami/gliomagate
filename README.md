@@ -1,90 +1,140 @@
 # GliomaGate
 
-**Grounded neuro-oncology inference:** a 2D MRI slice + a clinical note in, a tumor mask + a structured report + an **evidence ledger** out.
+A **grounded** neuro-oncology inference service: one axial MRI-like slice and a consult note go in; a tumor overlay, a structured report, and an **evidence ledger** come out.
 
-Every field is `image`, `retrieval`, or `ungrounded`. Grade is never allowed to claim image proof from one slice. If the note says left and the mask centroid is right, the API emits a **contradiction** instead of averaging.
+Every field is tagged `image`, `retrieval`, or `ungrounded`. WHO grade is **not allowed** to claim support from a single slice. If the note says left and the mask centroid is right, the API emits a contradiction instead of averaging.
 
-> Built and deployed a clinical NLP + medical imaging inference service — LoRA-tuned extractor (rank-4 student distilled from rank-8 teacher, 4-bit frozen base) + conv-stem FCN segmenter on 80 train / 32 test synthetic T1c-like slices, served via FastAPI + Docker on Hugging Face Spaces, **p95 35ms**, **~47 serial req/s** in-process, Cloud Run list-price **~$1e-6 / inference** at that p95 (1 vCPU). CI with GitHub Actions, pytest coverage **82%**, Prometheus `/metrics`. Live demo · this repo.
+**Repository:** [github.com/ParisaRostaami/gliomagate](https://github.com/ParisaRostaami/gliomagate)  
+**Results notebook (executed):** [notebooks/gliomagate_results.ipynb](notebooks/gliomagate_results.ipynb)  
+**Live URL:** not published yet — Hugging Face write token required (see below).
 
-That sentence is filled from **measured** files, not invented SLA copy. Read `models/metrics.json` and `models/bench.json`.
+---
 
-## Why this exists
+## Results (held-out, n = 32)
 
-Hiring loops in 2026 want systems people: Docker, CI, latency, cost, monitoring — and LLM people: LoRA, RAG eval, groundedness. This repo is one service that is both, in the domain of brain-tumor imaging + neuro-oncology notes.
+These numbers come from `python scripts/train.py` and `python scripts/make_figures.py`. They are also in `models/metrics.json` and `docs/results.json`.
 
-It is **not** BraTS, **not** MIMIC, **not** a 7B vLLM deployment on a free CPU Space. The generator is synthetic so the harness is reproducible without gated data. The GPU path (`training/train_qlora_t5.py`, `deploy/vllm-compose.yaml`) is real code that no-ops without CUDA, instead of a fake GPU claim.
-
-## What the API does
-
-`POST /v1/infer` (multipart: `note` + optional `image`, or `seed` for a built-in sample)
-
-Returns:
-
-- overlay PNG of edema (teal) vs enhancing core (red)
-- structured fields: laterality, lobe, grade, enhancement, symptom
-- provenance + evidence spans
-- top-k guideline chunks (TF-IDF RAG over WHO-style protocol text)
-- `latency_ms`
-
-Also: `GET /health`, `GET /metrics` (Prometheus), `GET /v1/eval` (cached harness), `GET /` (demo UI).
-
-## Held-out harness (32 synthetic cases)
-
-From `models/metrics.json` after `python scripts/train.py`:
-
-| Metric | Value | Meaning |
-| --- | --- | --- |
-| Tumor Dice (edema+core mean) | **0.79** | slice segmentation |
-| Field accuracy (templated notes) | **1.00** | notes name the fields; lexicon + LoRA |
-| nDCG@5 | **0.73** | retrieval quality |
-| Recall@5 (grade-relevant chunk) | **1.00** | |
+| Metric | Score | What it measures |
+| --- | ---: | --- |
+| Mean tumor Dice (edema + core) | **0.79** | slice segmentation vs synthetic masks |
+| nDCG@5 | **0.73** | guideline retrieval ranking |
+| Recall@5 (grade-relevant chunk) | **1.00** | did we retrieve a grade-bearing passage |
 | Grounded fraction | **0.79** | fields with image or retrieval support |
-| Grounded fraction, no RAG | **0.38** | ablation: retrieval is doing the work |
-| Contradiction rate | **0.00** on this split | note vs mask laterality |
+| Grounded fraction **without RAG** | **0.38** | ablation — retrieval is doing the work |
+| Field accuracy on templated notes | **1.00** | notes name the fields; lexicon gate + LoRA |
+| Contradiction rate | **0.00** | note vs mask laterality on this split |
+| p50 / p95 latency | **18 / 35 ms** | in-process TestClient, 80 calls (`models/bench.json`) |
+| Serial throughput | **47 req/s** | same bench |
+| Cloud Run list-price at p95 × 1 vCPU | **~$0.000001 / call** | not a GPU invoice |
+| pytest coverage | **82%** | `pytest --cov=app` |
 
-Templated notes make extraction look easy on purpose so the *interesting* number is groundedness under ablation. Interviewers should ask that.
+Templated notes make extraction look easy. That is deliberate. The number that **moves under ablation** is groundedness (0.79 → 0.38 when RAG is removed). That is the claim.
 
-## Latency and cost (measured)
+![Held-out metric bars](docs/figures/metrics_bars.png)
 
-From `models/bench.json` (80 in-process requests via TestClient, this workstation):
+![Segmentation gallery](docs/figures/gallery.png)
 
-- p50 **18ms**, p95 **35ms**, mean **21ms**
-- serial throughput **47 req/s**
-- Cloud Run CPU list price × p95 × 1 vCPU ≈ **$0.000001 / call**
+*Top: input slice. Middle: ground-truth mask (edema=1, core=2). Bottom: GliomaGate overlay (teal edema, red core).*
 
-That is not a 40 req/s soak on autoscaled replicas, and it is not $0.003. If a recruiter wants the bigger number, the honest answer is “GPU LLM serving would be cents-per-call; this CPU student is sub-millicent.”
+![Dice histogram](docs/figures/dice_hist.png)
 
-- **Segmenter:** multi-scale conv stem (Gaussian / Sobel / coordinates) + MLP pixel head, largest-component cleanup. Int8 linear student is trained as a distilled fast path.
-- **Extractor:** hash embeddings + LoRA (`y = xW_q + xAB`) with 4-bit frozen W (QLoRA-style). Rank-8 teacher distilled into rank-4 student.
-- **Lexicon gate:** if the note explicitly says `temporal` / `glioblastoma` / …, trust the span. Production clinical NLP does this; LoRA is the fallback.
-- **RAG:** sklearn TF-IDF over 10 guideline chunks, cosine top-k, nDCG/recall harness.
-- **Serving:** FastAPI, Docker, Prometheus histograms.
-- **Cloud:** live URL on Hugging Face Spaces (Docker). `deploy/cloudrun.yaml` is the GCP template. Cost estimate uses [Cloud Run CPU list price](https://cloud.google.com/run/pricing) × measured p95, not a pretend AWS invoice.
+![RAG ablation](docs/figures/ablation.png)
 
-## Run locally
+![Evidence ledger on one case](docs/figures/ledger.png)
+
+![Latency](docs/figures/latency.png)
+
+---
+
+## What the system does
+
+```text
+slice.png + consult note
+        │
+        ▼
+ conv-stem FCN  ──►  mask, laterality, core fraction
+        │
+        ▼
+ LoRA extractor (+ lexicon gate if the note names a field)
+        │
+        ▼
+ TF-IDF RAG over WHO-style glioma guidelines
+        │
+        ▼
+ evidence ledger: each field must pay rent
+        │
+        ▼
+ JSON + overlay PNG + Prometheus latency histogram
+```
+
+`POST /v1/infer` returns the overlay, the ledger, retrieved chunks, and `latency_ms`.  
+`GET /` is the demo UI. `GET /metrics` is Prometheus. `GET /v1/eval` is the cached harness.
+
+---
+
+## Method (short)
+
+**Segmenter.** Multi-scale convolutional stem (Gaussian, Sobel, coordinates) and a per-pixel MLP, then largest-component cleanup. An int8 linear head is distilled as a fast path; the served mask uses the MLP.
+
+**Extractor.** Hash embeddings and LoRA, \(y = x W_q + xAB\), with \(W\) stored in 16-level (4-bit-style) codes. A rank-8 teacher is distilled into a rank-4 student. If the note explicitly says `temporal` or `glioblastoma`, a lexicon gate trusts the span — that is how production clinical NLP actually ships.
+
+**Grounding.** Laterality and enhancement may be image-grounded. Grade may only be retrieval-grounded. Missing both → `ungrounded`.
+
+**Data.** 80 / 32 synthetic T1-post-contrast-like 128×128 slices (ellipsoidal core + edema, bias field, noise) and paired consult notes. **Not BraTS.** No gated PHI. The generator is in `app/synth.py` so every metric is reproducible.
+
+**What this is not.** Not a 3D nnU-Net. Not Flan-T5 QLoRA on this CPU (the script `training/train_qlora_t5.py` is real and exits 0 without CUDA). Not $0.003/inference — we measured ~$1e-6 on Cloud Run CPU list price.
+
+---
+
+## Run
 
 ```text
 python -m pip install -r requirements.txt
-python scripts/train.py          # writes models/
+python scripts/train.py              # models/ + metrics.json
+python scripts/make_figures.py       # docs/figures/*.png
+python scripts/build_notebook.py     # notebooks/gliomagate_results.ipynb with outputs
 python -m uvicorn app.main:app --port 7860
 python -m pytest -q --cov=app --cov-fail-under=80
-python scripts/bench.py          # writes models/bench.json
+python scripts/bench.py
 ```
 
 Open http://127.0.0.1:7860
-
-## Docker
 
 ```text
 docker build -t gliomagate .
 docker run --rm -p 7860:7860 gliomagate
 ```
 
-## What I will not claim
+---
 
-- Real BraTS Dice on clinical 3D volumes
-- p95 at 40 req/s on a GPU I did not rent
-- $0.003/inference unless `models/bench.json` says so after measurement
-- that Flan-T5 QLoRA ran on this machine (it did not; the script exits 0 without CUDA)
+## Access I still need for a public URL
 
-MIT License
+| Goal | Access |
+| --- | --- |
+| Figures, scores, notebook, README | **none** — produced in this repo |
+| GitHub (already pushed) | done: https://github.com/ParisaRostaami/gliomagate |
+| GitHub Actions CI YAML | `gh` token with **`workflow`** scope |
+| **Live demo URL** | Hugging Face **write** token, or run `hf auth login` |
+
+After an HF token exists, the Space URL will be  
+`https://huggingface.co/spaces/ParisaRostaami/gliomagate`.
+
+GCP Cloud Run template: `deploy/cloudrun.yaml`. GPU vLLM compose: `deploy/vllm-compose.yaml`.
+
+---
+
+## Layout
+
+```text
+app/            FastAPI, segmenter, LoRA, RAG, grounding, synth
+scripts/        train.py  make_figures.py  bench.py  build_notebook.py
+notebooks/      gliomagate_results.ipynb   ← executed outputs
+docs/figures/   gallery, Dice, ablation, ledger, latency
+models/         weights + metrics.json + bench.json
+data/test/      32 held-out .npz cases
+training/       QLoRA Flan-T5 script (GPU)
+deploy/         Cloud Run + vLLM
+tests/
+```
+
+MIT License © 2026 Parisa Rostami
