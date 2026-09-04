@@ -1,4 +1,4 @@
-"""Every structured field must pay rent: image, retrieval, or flagged ungrounded."""
+"""Tag each extracted field as image-supported, retrieval-supported, or ungrounded."""
 
 from __future__ import annotations
 

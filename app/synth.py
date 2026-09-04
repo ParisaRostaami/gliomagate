@@ -1,7 +1,7 @@
-"""Synthetic T1c/FLAIR-like slices and paired neuro-oncology notes.
+"""Synthetic T1c-like slices and paired neuro-oncology notes.
 
-Ellipsoidal enhancing core + edema halo, bias field, and Rician-ish noise.
-Not BraTS. Labels and notes are generated so every metric is reproducible.
+Ellipsoidal enhancing core + edema halo, bias field, and noise.
+Public stand-in for BraTS-style data (labels and notes are generated).
 """
 
 from __future__ import annotations

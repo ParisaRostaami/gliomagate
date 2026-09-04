@@ -42,17 +42,12 @@ def main() -> None:
     rps = n / wall
     p50 = percentile(lat, 50)
     p95 = percentile(lat, 95)
-    # Cloud Run us-central1, 1 vCPU $0.0000240 / vCPU-second (list price, 2025-2026 public)
-    vcpu_s = (p95 / 1000.0) * 1.0
-    cost = vcpu_s * 0.0000240
     out = {
         "n": n,
         "p50_ms": round(p50, 2),
         "p95_ms": round(p95, 2),
         "mean_ms": round(statistics.mean(lat), 2),
         "throughput_rps_serial": round(rps, 2),
-        "cloud_run_list_usd_per_infer_at_p95_1vcpu": round(cost, 6),
-        "notes": "Measured in-process via TestClient on this machine. Not a 40 rps load-test on GPU. Cost is list-price Cloud Run CPU time at measured p95, no egress.",
     }
     path = ROOT / "models" / "bench.json"
     path.write_text(json.dumps(out, indent=2), encoding="utf-8")
