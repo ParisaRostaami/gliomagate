@@ -99,20 +99,70 @@ def render_slice(rng: np.random.Generator, laterality: str, lobe: str, enhanceme
     return img, labels
 
 
-def write_note(case: dict) -> str:
-    enhance = "vivid gadolinium enhancement with central necrosis" if case["enhancement"] else "minimal enhancement"
+def write_note(case: dict, rng: np.random.Generator | None = None) -> str:
+    rng = rng or np.random.default_rng(0)
+    lat, lobe, grade, symptom = case["laterality"], case["lobe"], case["grade"], case["symptom"]
+    if case["enhancement"]:
+        enhance = rng.choice(
+            (
+                "avid gadolinium uptake with a necrotic center",
+                "ring enhancement and central necrosis",
+                "strong contrast enhancement",
+            )
+        )
+    else:
+        enhance = rng.choice(
+            (
+                "little contrast uptake",
+                "faint enhancement only",
+                "essentially non-enhancing tissue",
+            )
+        )
     grade_talk = {
-        "2": "favors a lower-grade glioma; mitotic activity is expected to be modest",
-        "3": "raises concern for anaplastic (WHO grade 3) histology",
-        "4": "is most consistent with glioblastoma, IDH-wildtype, WHO grade 4",
-    }[case["grade"]]
-    return (
-        f"Neuro-oncology consult. {case['symptom'].capitalize()} prompted MRI. "
-        f"There is a {case['laterality']}-sided {case['lobe']} mass. "
-        f"The lesion shows {enhance}. Imaging {grade_talk}. "
-        f"I recommend discussion at tumor board and molecular testing (IDH, MGMT) "
-        f"per institutional glioma protocol."
+        "2": rng.choice(
+            (
+                "Imaging favors a lower-grade glioma.",
+                "Findings are more in keeping with WHO grade 2 disease.",
+                "Mitotic activity is expected to be modest (grade 2).",
+            )
+        ),
+        "3": rng.choice(
+            (
+                "This raises concern for anaplastic (WHO grade 3) histology.",
+                "I would treat this as a grade 3 glioma pending pathology.",
+                "Features are compatible with anaplastic glioma.",
+            )
+        ),
+        "4": rng.choice(
+            (
+                "The appearance is most consistent with glioblastoma, WHO grade 4.",
+                "This is a high-grade pattern, likely GBM.",
+                "I favor IDH-wildtype glioblastoma (grade 4).",
+            )
+        ),
+    }[grade]
+    opener = rng.choice(
+        (
+            f"Consult note. Presentation: {symptom}.",
+            f"Neuro-oncology. Chief complaint is {symptom}.",
+            f"{symptom.capitalize()} led to this MRI.",
+        )
     )
+    location = rng.choice(
+        (
+            f"There is a {lat}-sided {lobe} mass.",
+            f"MRI shows a {lobe} lesion on the {lat}.",
+            f"A {lobe} mass is present {lat} of midline.",
+        )
+    )
+    close = rng.choice(
+        (
+            "Please discuss at tumor board. IDH and MGMT pending.",
+            "Recommend molecular testing (IDH, MGMT) and tumor-board review.",
+            "Plan: resection vs biopsy after multidisciplinary review.",
+        )
+    )
+    return f"{opener} {location} The lesion shows {enhance}. {grade_talk} {close}"
 
 
 def generate_split(n: int, seed: int, prefix: str) -> list[dict]:
@@ -137,7 +187,7 @@ def generate_split(n: int, seed: int, prefix: str) -> list[dict]:
             "image": img,
             "labels": labels,
         }
-        rec["note"] = write_note(rec)
+        rec["note"] = write_note(rec, rng)
         rows.append(rec)
     return rows
 

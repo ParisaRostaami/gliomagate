@@ -119,7 +119,8 @@ def sample(seed: int = 0):
             "grade": "4" if enhancement else "2",
             "enhancement": enhancement,
             "symptom": "seizure",
-        }
+        },
+        rng,
     )
     return {
         "image_png": _png_b64(image),

@@ -1,20 +1,20 @@
 {
-  "dice": 0.7901078891007227,
+  "dice": 0.7681846256408018,
   "field_acc": {
     "laterality": 1.0,
-    "lobe": 1.0,
-    "grade": 1.0,
-    "enhancement": 1.0,
-    "symptom": 1.0
+    "lobe": 0.3125,
+    "grade": 0.65625,
+    "enhancement": 0.90625,
+    "symptom": 0.21875
   },
-  "field_acc_mean": 1.0,
-  "ndcg5": 0.7293598302192058,
-  "recall5": 1.0,
-  "grounded_fraction": 0.7875,
+  "field_acc_mean": 0.61875,
+  "ndcg5": 0.8045199347938826,
+  "recall5": 0.8125,
+  "grounded_fraction": 0.8625,
   "contradiction_rate": 0.0,
   "ablation": {
-    "full_field_acc": 1.0,
-    "no_image_field_acc": 1.0,
-    "no_rag_grounded_fraction": 0.38125
+    "full_field_acc": 0.61875,
+    "no_image_field_acc": 0.5562499999999999,
+    "no_rag_grounded_fraction": 0.34375
   }
 }

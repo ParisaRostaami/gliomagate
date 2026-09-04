@@ -1,8 +1,7 @@
-"""LoRA on a frozen hash-embedding encoder; QLoRA-style 4-bit frozen weights.
+"""LoRA extractor on hash embeddings of the note and image findings.
 
-The served student is rank-4 LoRA. A rank-8 teacher is distilled into it.
-This is the actual math of LoRA/QLoRA, not a wrapper around a 7B model —
-Flan-T5 QLoRA is in training/train_qlora_t5.py for GPU boxes.
+The served student is rank-4 on a frozen 4-bit-style linear base. A rank-8
+teacher is trained first. GPU Flan-T5 path: training/train_qlora_t5.py.
 """
 
 from __future__ import annotations
@@ -14,8 +13,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-
-from .synth import LOBES, SYMPTOMS
 
 FIELDS = ("laterality", "lobe", "grade", "enhancement", "symptom")
 FIELD_VOCAB = {
@@ -126,7 +123,7 @@ def _train_head(
     steps: int = 400,
     lora_only: bool = False,
     freeze_W: np.ndarray | None = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[float]]:
     rng = np.random.default_rng(seed)
     d = xs.shape[1]
     if freeze_W is None:
@@ -136,24 +133,44 @@ def _train_head(
     A = rng.normal(0, 0.02, size=(d, rank)).astype(np.float32)
     B = np.zeros((rank, n_out), dtype=np.float32)
     lr = 0.15
+    losses: list[float] = []
     for step in range(steps):
         i = int(rng.integers(0, len(xs)))
         x = xs[i]
         logits = x @ W + (x @ A) @ B
         loss, g = _softmax_ce_grad(logits, int(ys[i]))
-        # d logits
         if not lora_only:
             W -= lr * np.outer(x, g)
         A -= lr * np.outer(x, B @ g)
         B -= lr * np.outer(A.T @ x, g)
+        if step % 25 == 0 or step == steps - 1:
+            losses.append(float(loss))
         if step in (150, 280):
             lr *= 0.5
-    return W, A, B
+    return W, A, B, losses
 
 
 def encode_case(note: str, findings: dict) -> np.ndarray:
     vis = " ".join(image_tokens(findings))
     return hash_embed(tokenize(note) + tokenize(vis))
+
+
+def _gold_label(g: dict, field: str) -> str:
+    raw = g[field]
+    if field == "enhancement":
+        return "yes" if raw is True else "no" if raw is False else str(raw)
+    return str(raw)
+
+
+def field_accuracy(heads: dict[str, LoRAHead], notes: list[str], findings: list[dict], gold: list[dict]) -> dict[str, float]:
+    acc: dict[str, float] = {}
+    for field in FIELD_VOCAB:
+        hits = 0
+        for note, find, g in zip(notes, findings, gold):
+            pred = extract(heads, note, find)[field]["value"]
+            hits += int(pred == _gold_label(g, field))
+        acc[field] = hits / max(len(gold), 1)
+    return acc
 
 
 def train_lora(
@@ -165,54 +182,28 @@ def train_lora(
     xs = np.stack([encode_case(n, f) for n, f in zip(notes, findings)])
     heads: dict[str, LoRAHead] = {}
     rng_seed = seed
+    loss_curves: dict[str, list[float]] = {}
     for field, labels in FIELD_VOCAB.items():
         lab_to_i = {lab: i for i, lab in enumerate(labels)}
-        ys = []
-        for g in gold:
-            raw = g[field]
-            if field == "enhancement":
-                raw = "yes" if raw is True else "no" if raw is False else str(raw)
-            ys.append(lab_to_i.get(str(raw), lab_to_i["unknown"]))
-        yv = np.array(ys, dtype=np.int64)
-        # teacher: full fine-tune rank-8
-        W_t, A_t, B_t = _train_head(xs, yv, len(labels), TEACHER_RANK, rng_seed, steps=500, lora_only=False)
-        W_star = W_t + A_t @ B_t  # merge teacher
-        # QLoRA student: freeze 4-bit W, train rank-4
-        W_s, A_s, B_s = _train_head(
+        yv = np.array(
+            [lab_to_i.get(_gold_label(g, field), lab_to_i["unknown"]) for g in gold],
+            dtype=np.int64,
+        )
+        W_t, A_t, B_t, _ = _train_head(xs, yv, len(labels), TEACHER_RANK, rng_seed, steps=500, lora_only=False)
+        W_star = W_t + A_t @ B_t
+        W_s, A_s, B_s, student_loss = _train_head(
             xs, yv, len(labels), RANK, rng_seed + 7, steps=350, lora_only=True, freeze_W=W_star
         )
         code, scale, wmin = _quantize_4bit(W_s)
         heads[field] = LoRAHead(field, labels, code, scale, wmin, A_s, B_s)
+        loss_curves[field] = student_loss
         rng_seed += 11
+        print(f"  LoRA {field}: student CE {student_loss[0]:.3f} -> {student_loss[-1]:.3f}")
+    train_lora.last_loss_curves = loss_curves  # type: ignore[attr-defined]
+    acc = field_accuracy(heads, notes, findings, gold)
+    train_lora.last_train_acc = acc  # type: ignore[attr-defined]
+    print("  LoRA train field acc:", {k: round(v, 3) for k, v in acc.items()})
     return heads
-
-
-def lexicon_boost(note: str, out: dict) -> dict:
-    """If the note names a field explicitly, trust the span over the LoRA guess."""
-    n = note.lower()
-    if "left" in n and "right" not in n:
-        out["laterality"] = {"value": "left", "confidence": max(out["laterality"]["confidence"], 0.97)}
-    elif "right" in n and "left" not in n:
-        out["laterality"] = {"value": "right", "confidence": max(out["laterality"]["confidence"], 0.97)}
-    for lobe in LOBES:
-        if lobe in n:
-            out["lobe"] = {"value": lobe, "confidence": 0.97}
-            break
-    if "glioblastoma" in n or "grade 4" in n or "who grade 4" in n:
-        out["grade"] = {"value": "4", "confidence": 0.96}
-    elif "anaplastic" in n or "grade 3" in n:
-        out["grade"] = {"value": "3", "confidence": 0.94}
-    elif "lower-grade" in n or "grade 2" in n:
-        out["grade"] = {"value": "2", "confidence": 0.94}
-    if "minimal enhancement" in n or "little or no" in n:
-        out["enhancement"] = {"value": "no", "confidence": 0.95}
-    elif "enhancement" in n or "gadolinium" in n:
-        out["enhancement"] = {"value": "yes", "confidence": 0.95}
-    for sym in SYMPTOMS:
-        if sym in n:
-            out["symptom"] = {"value": sym, "confidence": 0.97}
-            break
-    return out
 
 
 def extract(heads: dict[str, LoRAHead], note: str, findings: dict) -> dict:
@@ -221,7 +212,7 @@ def extract(heads: dict[str, LoRAHead], note: str, findings: dict) -> dict:
     for field, head in heads.items():
         val = head.predict(x)
         out[field] = {"value": val, "confidence": round(head.proba(x), 3)}
-    return lexicon_boost(note, out)
+    return out
 
 
 def save_lora(heads: dict[str, LoRAHead], path: Path) -> None:

@@ -1,103 +1,109 @@
 {
   "harness": {
-    "dice": 0.7901078891007227,
+    "dice": 0.7681846256408018,
     "field_acc": {
       "laterality": 1.0,
-      "lobe": 1.0,
-      "grade": 1.0,
-      "enhancement": 1.0,
-      "symptom": 1.0
+      "lobe": 0.3125,
+      "grade": 0.65625,
+      "enhancement": 0.90625,
+      "symptom": 0.21875
     },
-    "field_acc_mean": 1.0,
-    "ndcg5": 0.7293598302192058,
-    "recall5": 1.0,
-    "grounded_fraction": 0.7875,
+    "field_acc_mean": 0.61875,
+    "ndcg5": 0.8045199347938826,
+    "recall5": 0.8125,
+    "grounded_fraction": 0.8625,
     "contradiction_rate": 0.0,
     "ablation": {
-      "full_field_acc": 1.0,
-      "no_image_field_acc": 1.0,
-      "no_rag_grounded_fraction": 0.38125
+      "full_field_acc": 0.61875,
+      "no_image_field_acc": 0.5562499999999999,
+      "no_rag_grounded_fraction": 0.34375
     }
   },
-  "dice_mean": 0.7901078891007227,
-  "dice_p10": 0.436696575550988,
-  "dice_p90": 0.9936247906655478,
+  "dice_mean": 0.7681846256408018,
+  "dice_p10": 0.4590288377678452,
+  "dice_p90": 0.9864525377665995,
   "latency": {
     "n": 96,
-    "p50_ms": 16.23,
-    "p95_ms": 19.19,
-    "mean_ms": 16.46
+    "p50_ms": 25.65,
+    "p95_ms": 33.07,
+    "mean_ms": 25.91
   },
   "example_case": "te-0002",
   "example_ledger": {
     "fields": {
       "laterality": {
-        "value": "left",
-        "confidence": 0.97,
+        "value": "right",
+        "confidence": 0.938,
         "provenance": "image",
         "evidence": [
-          "mask centroid is on the left half of the slice"
+          "mask centroid is on the right half of the slice",
+          "supported by retrieved guideline span"
         ]
       },
       "lobe": {
-        "value": "occipital",
-        "confidence": 0.97,
-        "provenance": "ungrounded",
-        "evidence": []
+        "value": "temporal",
+        "confidence": 0.276,
+        "provenance": "retrieval",
+        "evidence": [
+          "supported by retrieved guideline span"
+        ]
       },
       "grade": {
-        "value": "3",
-        "confidence": 0.94,
+        "value": "4",
+        "confidence": 0.494,
         "provenance": "retrieval",
         "evidence": [
           "supported by retrieved guideline span"
         ]
       },
       "enhancement": {
-        "value": "no",
-        "confidence": 0.95,
-        "provenance": "retrieval",
+        "value": "yes",
+        "confidence": 0.676,
+        "provenance": "image",
         "evidence": [
+          "core fraction=0.28 volume_px=1194",
           "supported by retrieved guideline span"
         ]
       },
       "symptom": {
-        "value": "new headache",
-        "confidence": 0.97,
-        "provenance": "ungrounded",
-        "evidence": []
+        "value": "seizure",
+        "confidence": 0.25,
+        "provenance": "retrieval",
+        "evidence": [
+          "supported by retrieved guideline span"
+        ]
       }
     },
     "contradictions": [],
-    "grounded_fraction": 0.6,
+    "grounded_fraction": 1.0,
     "image_findings": {
-      "laterality": "left",
+      "laterality": "right",
       "enhancement": true,
-      "volume_proxy_px": 1321,
-      "core_fraction": 0.16956850870552612
+      "volume_proxy_px": 1194,
+      "core_fraction": 0.2847571189279732
     }
   },
   "example_hits": [
     {
+      "id": "laterality-eloquent",
+      "title": "Laterality and eloquent cortex",
+      "score": 0.22917513345160193
+    },
+    {
       "id": "tumor-board",
       "title": "Multidisciplinary glioma protocol",
-      "score": 0.3104138314129826
+      "score": 0.22524849921116408
     },
     {
       "id": "who-cns-2021-gbm",
       "title": "WHO CNS 2021 glioblastoma",
-      "score": 0.19812830107079235
+      "score": 0.21478916478693696
     },
     {
       "id": "seizure-temporal",
       "title": "Seizure and temporal lobe",
-      "score": 0.17667182094403897
-    },
-    {
-      "id": "who-cns-2021-lgg",
-      "title": "Lower-grade diffuse gliomas",
-      "score": 0.16703773547253994
+      "score": 0.16067859748744123
     }
   ],
-  "example_note": "Neuro-oncology consult. New headache prompted MRI. There is a left-sided occipital mass. The lesion shows minimal enhancement. Imaging raises concern for anaplastic (WHO grade 3) histology. I recommend discussion at tumor board and molecular testing (IDH, MGMT) per institutional glioma protocol."
+  "example_note": "Neuro-oncology. Chief complaint is word-finding difficulty. There is a right-sided frontal mass. The lesion shows avid gadolinium uptake with a necrotic center. This is a high-grade pattern, likely GBM. Please discuss at tumor board. IDH and MGMT pending."
 }

@@ -138,7 +138,9 @@ def train_segmenter(images: list[np.ndarray], masks: list[np.ndarray], seed: int
         max_iter=160,
         random_state=seed,
         alpha=1e-4,
+        verbose=False,
     )
+    print(f"  MLPClassifier on {len(x)} subsampled pixels...")
     mlp.fit(x, y)
     # Distill to a linear int8 head on the same stem (student).
     linear = LogisticRegression(max_iter=200, random_state=seed)

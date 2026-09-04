@@ -1,9 +1,9 @@
 {
   "n": 80,
-  "p50_ms": 18.32,
-  "p95_ms": 34.68,
-  "mean_ms": 21.36,
-  "throughput_rps_serial": 46.82,
+  "p50_ms": 29.02,
+  "p95_ms": 35.52,
+  "mean_ms": 29.59,
+  "throughput_rps_serial": 33.8,
   "cloud_run_list_usd_per_infer_at_p95_1vcpu": 1e-06,
   "notes": "Measured in-process via TestClient on this machine. Not a 40 rps load-test on GPU. Cost is list-price Cloud Run CPU time at measured p95, no egress."
 }

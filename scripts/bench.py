@@ -1,4 +1,4 @@
-"""Measure p95 latency and a Cloud Run cost estimate. Honest numbers only."""
+"""Measure p50/p95 latency with the FastAPI TestClient."""
 
 from __future__ import annotations
 

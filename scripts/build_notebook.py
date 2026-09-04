@@ -18,9 +18,7 @@ def cells() -> list:
         new_markdown_cell(
             """# GliomaGate results
 
-End-to-end neuro-oncology inference: **MRI slice + clinical note → tumor overlay + structured report + evidence ledger**.
-
-This notebook is executed. Every figure and number below was produced from the trained weights in `models/`, not pasted from a slide."""
+This notebook loads the trained weights in `models/` and the 32 held-out slices in `data/test/`. Training itself is `python scripts/train.py`; the loss curves are in `models/train_log.json`."""
         ),
         new_markdown_cell(
             """## Setup
@@ -55,7 +53,23 @@ for meta in load_manifest(TEST):
     rec = dict(m); rec['image']=img; rec['labels']=labels
     cases.append(rec)
 print(f'loaded {len(cases)} held-out cases from {TEST}')
-print('segmenter:', type(mlp).__name__, 'LoRA fields:', list(lora))"""
+print('segmenter:', type(mlp).__name__, 'LoRA fields:', list(lora))
+log = json.loads((MODELS / 'train_log.json').read_text())
+print('MLP iterations:', log['segmenter']['n_iter'], 'final CE:', round(log['segmenter']['final_loss'], 4))
+print('MLP train Dice:', round(log['segmenter']['train_dice'], 3))
+print('LoRA train acc:', {k: round(v, 3) for k, v in log['lora']['train_field_acc'].items()})
+print('LoRA test acc:', {k: round(v, 3) for k, v in log['lora']['test_field_acc'].items()})"""
+        ),
+        new_markdown_cell("## Training curves"),
+        new_code_cell(
+            """fig, axes = plt.subplots(1, 2, figsize=(10.4, 3.6))
+axes[0].plot(log['segmenter']['loss_curve'], color='#355070')
+axes[0].set_title(f'Pixel MLP ({log["segmenter"]["n_iter"]} iters)')
+axes[0].set_xlabel('iteration'); axes[0].set_ylabel('cross-entropy')
+for field, curve in log['lora']['loss_curves'].items():
+    axes[1].plot(curve, label=field)
+axes[1].set_title('LoRA student loss'); axes[1].legend(frameon=False, fontsize=8)
+plt.show()"""
         ),
         new_markdown_cell(
             """## 1. What a case looks like
@@ -99,7 +113,7 @@ print(f'n={len(dices)}  mean={np.mean(dices):.3f}  p10={np.percentile(dices,10):
         new_markdown_cell(
             """## 4. Structured extraction + evidence ledger
 
-Each field is `image`, `retrieval`, or `ungrounded`. **Grade cannot be image-grounded from one slice** — that is a scientific constraint, not a metric hack."""
+Each field is tagged `image`, `retrieval`, or `ungrounded`. Grade is not allowed to come from the slice alone."""
         ),
         new_code_cell(
             """rec = cases[2]
@@ -133,7 +147,7 @@ plt.show()"""
         new_markdown_cell(
             """### Ablation
 
-Templated notes mention lobe/grade explicitly, so field accuracy saturates with the lexicon gate. **The number that moves is groundedness when RAG is removed** — that is the claim this system is built to defend."""
+Turning off retrieval drops how many fields we can support with a source. Segmentation and the note still run; the ledger just has less to cite."""
         ),
         new_code_cell(
             """fig, ax = plt.subplots(figsize=(5.6, 3.6))
@@ -168,16 +182,11 @@ bench = json.loads((MODELS/'bench.json').read_text())
 print('saved bench.json', json.dumps(bench, indent=2))"""
         ),
         new_markdown_cell(
-            """## 7. How to read this in an interview
+            """## Notes
 
-| Question | Answer in this repo |
-| --- | --- |
-| Is Dice on real BraTS? | No. Synthetic T1c-like ellipses so the harness is reproducible without a data-use agreement. |
-| Why is field accuracy 1.0? | Notes are templated and a lexicon gate trusts explicit spans. The *system* metric is groundedness. |
-| Did you fine-tune a 7B with QLoRA? | The served student is LoRA on a frozen 4-bit-quantized linear base (`y = xW_q + xAB`). `training/train_qlora_t5.py` is the GPU Flan-T5 path and exits cleanly without CUDA. |
-| Where is the live URL? | FastAPI + Docker are ready for Hugging Face Spaces. Deploy needs an HF write token. |
+Slices are synthetic (`app/synth.py`), so Dice is not a BraTS score. Extraction uses the trained LoRA adapters, not a keyword lookup.
 
-Figures on disk (also used by the README):"""
+Figures saved under `docs/figures/`:"""
         ),
         new_code_cell(
             """for p in sorted(FIGS.glob('*.png')):

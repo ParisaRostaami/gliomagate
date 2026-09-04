@@ -104,7 +104,7 @@ def metric_bars(metrics: dict, path: Path) -> None:
         "Recall@5",
         "Grounded",
         "Grounded\n(no RAG)",
-        "Field acc\n(templated)",
+        "Field acc",
     ]
     vals = [
         metrics["dice"],
@@ -119,7 +119,7 @@ def metric_bars(metrics: dict, path: Path) -> None:
     bars = ax.bar(labels, vals, color=colors)
     ax.set_ylim(0, 1.08)
     ax.set_ylabel("score")
-    ax.set_title("Held-out harness (n=32)")
+    ax.set_title("Held-out test set (n=32)")
     for b, v in zip(bars, vals):
         ax.text(b.get_x() + b.get_width() / 2, v + 0.02, f"{v:.2f}", ha="center", fontsize=9)
     fig.tight_layout()
@@ -133,7 +133,7 @@ def ablation_chart(metrics: dict, path: Path) -> None:
     vals = [metrics["grounded_fraction"], metrics["ablation"]["no_rag_grounded_fraction"]]
     ax.bar(names, vals, color=["#2a9d8f", "#e76f51"], width=0.55)
     ax.set_ylim(0, 1.05)
-    ax.set_title("Ablation: retrieval is what grounds the report")
+    ax.set_title("Grounded fraction with vs without retrieval")
     for i, v in enumerate(vals):
         ax.text(i, v + 0.03, f"{v:.2f}", ha="center")
     fig.tight_layout()
@@ -215,6 +215,43 @@ def ledger_figure(mlp, lora, rec: dict, path: Path) -> dict:
     return {"case_id": rec["case_id"], "ledger": ledger, "hits": [{"id": h.chunk_id, "title": h.title, "score": h.score} for h in hits], "note": rec["note"]}
 
 
+def train_curves(path: Path) -> None:
+    log_path = MODELS / "train_log.json"
+    if not log_path.exists():
+        return
+    log = json.loads(log_path.read_text(encoding="utf-8"))
+    fig, axes = plt.subplots(1, 2, figsize=(10.4, 3.8))
+    mlp_loss = log["segmenter"]["loss_curve"]
+    axes[0].plot(mlp_loss, color="#355070")
+    axes[0].set_title(f"Pixel MLP training loss ({log['segmenter']['n_iter']} iters)")
+    axes[0].set_xlabel("iteration")
+    axes[0].set_ylabel("cross-entropy")
+    for field, curve in log["lora"]["loss_curves"].items():
+        axes[1].plot(curve, label=field)
+    axes[1].set_title("LoRA student loss (sampled)")
+    axes[1].set_xlabel("checkpoint")
+    axes[1].legend(frameon=False, fontsize=8)
+    fig.tight_layout()
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+
+
+def field_acc_chart(metrics: dict, path: Path) -> None:
+    items = list(metrics["field_acc"].items())
+    names = [k for k, _ in items]
+    vals = [v for _, v in items]
+    fig, ax = plt.subplots(figsize=(7.2, 3.8))
+    bars = ax.bar(names, vals, color="#4a7c9b")
+    ax.set_ylim(0, 1.08)
+    ax.set_ylabel("accuracy")
+    ax.set_title("LoRA field accuracy on held-out notes")
+    for b, v in zip(bars, vals):
+        ax.text(b.get_x() + b.get_width() / 2, v + 0.02, f"{v:.2f}", ha="center", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     _style()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -222,6 +259,7 @@ def main() -> None:
     lora = load_lora(MODELS)
     cases = load_test_cases()
     metrics = json.loads((MODELS / "metrics.json").read_text(encoding="utf-8"))
+    train_curves(OUT / "train_curves.png")
 
     gallery(mlp, cases, OUT / "gallery.png")
     dices = dice_hist(mlp, cases, OUT / "dice_hist.png")
@@ -245,6 +283,9 @@ def main() -> None:
     }
     (ROOT / "docs" / "results.json").write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
     (MODELS / "metrics.json").write_text(json.dumps(harness, indent=2), encoding="utf-8")
+    field_acc_chart(harness, OUT / "field_acc.png")
+    metric_bars(harness, OUT / "metrics_bars.png")
+    ablation_chart(harness, OUT / "ablation.png")
     print(json.dumps({"wrote": str(OUT), "dice_mean": summary["dice_mean"], "p95_ms": lat["p95_ms"]}, indent=2))
 
 

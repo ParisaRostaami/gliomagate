@@ -9,6 +9,6 @@ pinned: false
 
 # GliomaGate
 
-Grounded neuro-oncology inference. Interactive samples run from precomputed outputs on this Space (Hugging Face free tier no longer hosts Docker/Gradio without Pro).
+MRI-like slice + consult note → tumor overlay, structured fields, and an evidence ledger.
 
-Full FastAPI + Docker service: [github.com/ParisaRostaami/gliomagate](https://github.com/ParisaRostaami/gliomagate)
+Samples on this page are from the trained models in the repo. Source and FastAPI service: [github.com/ParisaRostaami/gliomagate](https://github.com/ParisaRostaami/gliomagate)
