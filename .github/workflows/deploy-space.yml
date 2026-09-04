@@ -1,0 +1,42 @@
+name: deploy-space
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+
+jobs:
+  space:
+    if: github.event_name == 'workflow_dispatch' || secrets.HF_TOKEN != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install hub
+        run: pip install huggingface_hub
+      - name: Create and upload Docker Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os, shutil
+          from pathlib import Path
+          from huggingface_hub import HfApi
+          token = os.environ["HF_TOKEN"]
+          api = HfApi(token=token)
+          repo_id = "ParisaRostaami/gliomagate"
+          api.create_repo(repo_id, repo_type="space", space_sdk="docker", exist_ok=True, private=False)
+          readme = Path("HF_README.md").read_text(encoding="utf-8")
+          Path("README.md").write_text(readme, encoding="utf-8")
+          api.upload_folder(
+              folder_path=".",
+              repo_id=repo_id,
+              repo_type="space",
+              ignore_patterns=[".git*", "data/train/*", "data/test/*", ".venv/*", "htmlcov/*"],
+          )
+          print("https://huggingface.co/spaces/" + repo_id)
+          PY

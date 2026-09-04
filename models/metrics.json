@@ -1,0 +1,20 @@
+{
+  "dice": 0.7901078891007227,
+  "field_acc": {
+    "laterality": 1.0,
+    "lobe": 1.0,
+    "grade": 1.0,
+    "enhancement": 1.0,
+    "symptom": 1.0
+  },
+  "field_acc_mean": 1.0,
+  "ndcg5": 0.7293598302192058,
+  "recall5": 1.0,
+  "grounded_fraction": 0.7875,
+  "contradiction_rate": 0.0,
+  "ablation": {
+    "full_field_acc": 1.0,
+    "no_image_field_acc": 1.0,
+    "no_rag_grounded_fraction": 0.38125
+  }
+}

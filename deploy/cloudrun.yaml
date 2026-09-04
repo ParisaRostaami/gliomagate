@@ -1,0 +1,29 @@
+# Cloud Run deploy template — not the live URL (live is Hugging Face Spaces).
+# gcloud run deploy gliomagate --source . --region us-central1 --allow-unauthenticated --cpu 1 --memory 1Gi
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: gliomagate
+  annotations:
+    run.googleapis.com/cpu-throttling: "false"
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: "10"
+    spec:
+      containerConcurrency: 40
+      containers:
+        - image: gcr.io/PROJECT/gliomagate:latest
+          ports:
+            - containerPort: 7860
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+          env:
+            - name: PORT
+              value: "7860"

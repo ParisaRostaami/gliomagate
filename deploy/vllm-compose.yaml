@@ -1,0 +1,15 @@
+# GPU serving path (not used on the free CPU Space).
+# docker compose -f deploy/vllm-compose.yaml up
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
+    command: >
+      --model google/flan-t5-small
+      --dtype bfloat16
+      --max-model-len 512
+    ports:
+      - "8000:8000"
+    profiles: ["gpu"]
