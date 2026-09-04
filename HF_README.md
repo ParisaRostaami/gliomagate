@@ -1,7 +1,7 @@
 ---
 title: GliomaGate
 emoji: 🧠
-colorFrom: slate
+colorFrom: gray
 colorTo: indigo
 sdk: docker
 app_port: 7860

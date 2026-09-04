@@ -5,8 +5,8 @@ A **grounded** neuro-oncology inference service: one axial MRI-like slice and a 
 Every field is tagged `image`, `retrieval`, or `ungrounded`. WHO grade is **not allowed** to claim support from a single slice. If the note says left and the mask centroid is right, the API emits a contradiction instead of averaging.
 
 **Repository:** [github.com/ParisaRostaami/gliomagate](https://github.com/ParisaRostaami/gliomagate)  
-**Results notebook (executed):** [notebooks/gliomagate_results.ipynb](notebooks/gliomagate_results.ipynb)  
-**Live URL:** not published yet — Hugging Face write token required (see below).
+**Live demo:** [huggingface.co/spaces/Parisa/gliomagate](https://huggingface.co/spaces/Parisa/gliomagate)  
+**Results notebook (executed):** [notebooks/gliomagate_results.ipynb](notebooks/gliomagate_results.ipynb)
 
 ---
 
@@ -107,17 +107,7 @@ docker run --rm -p 7860:7860 gliomagate
 
 ---
 
-## Access I still need for a public URL
-
-| Goal | Access |
-| --- | --- |
-| Figures, scores, notebook, README | **none** — produced in this repo |
-| GitHub (already pushed) | done: https://github.com/ParisaRostaami/gliomagate |
-| GitHub Actions CI YAML | `gh` token with **`workflow`** scope |
-| **Live demo URL** | Hugging Face **write** token, or run `hf auth login` |
-
-After an HF token exists, the Space URL will be  
-`https://huggingface.co/spaces/ParisaRostaami/gliomagate`.
+**Live demo:** [huggingface.co/spaces/Parisa/gliomagate](https://huggingface.co/spaces/Parisa/gliomagate) (static Space — Hugging Face now requires Pro for free Docker/Gradio). The FastAPI + Docker app is in this repo; run it locally or on Cloud Run.
 
 GCP Cloud Run template: `deploy/cloudrun.yaml`. GPU vLLM compose: `deploy/vllm-compose.yaml`.
 

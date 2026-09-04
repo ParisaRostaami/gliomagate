@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GliomaGate — grounded neuro-oncology inference</title>
+  <style>
+    :root { --ink:#122033; --muted:#5a6a7a; --line:#d8dee6; --bg:#f4f6f9; --card:#fff; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+    header { max-width:1080px; margin:0 auto; padding:32px 22px 8px; }
+    h1 { margin:0 0 8px; letter-spacing:-.03em; font-size:1.7rem; }
+    .sub { color:var(--muted); max-width:72ch; line-height:1.5; }
+    .scores { display:flex; flex-wrap:wrap; gap:10px; margin:18px 0; }
+    .chip { background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; min-width:110px; }
+    .chip b { display:block; font-size:1.15rem; }
+    .chip span { color:var(--muted); font-size:.75rem; }
+    main { max-width:1080px; margin:0 auto; padding:8px 22px 50px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 14px; }
+    .tabs button { border:1px solid var(--line); background:#fff; border-radius:999px; padding:7px 12px; cursor:pointer; }
+    .tabs button.on { background:#122033; color:#fff; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; }
+    img { width:100%; border-radius:10px; background:#0b1220; }
+    .field { border-top:1px solid var(--line); padding:8px 0; font-size:.92rem; }
+    .tag { font-size:.68rem; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:999px; }
+    .image { background:#ccfbf1; color:#115e59; }
+    .retrieval { background:#e0e7ff; color:#3730a3; }
+    .ungrounded { background:#fee4e2; color:#7a271a; }
+    .hit { font-size:.85rem; color:var(--muted); margin:8px 0; }
+    .note { font-size:.9rem; color:#334; line-height:1.45; }
+    a { color:#355070; }
+    @media (max-width:800px) { .grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>GliomaGate</h1>
+    <p class="sub">
+      MRI-like slice + consult note → tumor overlay + structured report + evidence ledger.
+      Every field is <b>image</b>, <b>retrieval</b>, or <b>ungrounded</b>.
+      Samples below are live precomputed inferences from the trained service.
+      Full FastAPI + Docker repo:
+      <a href="https://github.com/ParisaRostaami/gliomagate">github.com/ParisaRostaami/gliomagate</a>
+    </p>
+    <div class="scores" id="scores"></div>
+  </header>
+  <main>
+    <div class="tabs" id="tabs"></div>
+    <div class="grid">
+      <section class="card">
+        <img id="src" alt="slice" />
+        <p class="note" id="note"></p>
+      </section>
+      <section class="card">
+        <img id="mask" alt="overlay" />
+        <p id="dice"></p>
+        <div id="ledger"></div>
+        <h3>Retrieved guidelines</h3>
+        <div id="hits"></div>
+      </section>
+    </div>
+  </main>
+  <script src="results.js"></script>
+  <script>
+    const G = window.GLIOMA;
+    const m = G.metrics, b = G.bench;
+    document.getElementById('scores').innerHTML = [
+      ['Dice', m.dice.toFixed(2)],
+      ['nDCG@5', m.ndcg5.toFixed(2)],
+      ['Grounded', m.grounded_fraction.toFixed(2)],
+      ['No-RAG grounded', m.ablation.no_rag_grounded_fraction.toFixed(2)],
+      ['p95', b.p95_ms + ' ms'],
+      ['Serial rps', b.throughput_rps_serial]
+    ].map(([k,v]) => `<div class="chip"><b>${v}</b><span>${k}</span></div>`).join('');
+
+    const tabs = document.getElementById('tabs');
+    G.samples.forEach((s, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = s.case_id;
+      btn.onclick = () => show(i);
+      tabs.appendChild(btn);
+    });
+    function show(i) {
+      [...tabs.children].forEach((c, j) => c.classList.toggle('on', j===i));
+      const s = G.samples[i];
+      document.getElementById('src').src = 'data:image/png;base64,' + s.source_png;
+      document.getElementById('mask').src = 'data:image/png;base64,' + s.mask_png;
+      document.getElementById('note').textContent = s.note;
+      document.getElementById('dice').textContent = 'Dice ' + s.dice + ' · grounded ' + s.ledger.grounded_fraction;
+      document.getElementById('ledger').innerHTML = Object.entries(s.ledger.fields).map(([k,v]) =>
+        `<div class="field"><b>${k}</b> → ${v.value} <span class="tag ${v.provenance}">${v.provenance}</span><div style="color:#6a7">${(v.evidence||[]).join(' · ')}</div></div>`
+      ).join('');
+      document.getElementById('hits').innerHTML = s.retrieval.map(h =>
+        `<div class="hit"><b>${h.title}</b> (${h.score})<br>${h.text}</div>`
+      ).join('');
+    }
+    show(0);
+  </script>
+</body>
+</html>
