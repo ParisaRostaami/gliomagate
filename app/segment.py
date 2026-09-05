@@ -247,3 +247,18 @@ def save_segmenter(mlp: MLPClassifier, head: Int8LinearHead, path: Path) -> None
 def load_segmenter(path: Path) -> tuple[MLPClassifier, Int8LinearHead]:
     blob = joblib.load(path)
     return blob["mlp"], blob["head"]
+
+
+def predict_mask(model, image: np.ndarray) -> np.ndarray:
+    if type(model).__name__ == "UNetSegmenter":
+        return model.predict(image)
+    return predict_mask_mlp(model, image)
+
+
+def load_predictor(model_dir: Path):
+    unet_path = model_dir / "unet.pt"
+    if unet_path.exists():
+        from .unet import load_unet
+
+        return load_unet(unet_path)
+    return load_segmenter(model_dir / "segmenter.joblib")[0]

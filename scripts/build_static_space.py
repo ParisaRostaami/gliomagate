@@ -17,7 +17,7 @@ from app.ground import assemble_ledger
 from app.lora_extract import extract, load_lora
 from app.main import overlay_rgb
 from app.rag import GuidelineIndex
-from app.segment import image_findings, load_segmenter, mean_tumor_dice, predict_mask_mlp
+from app.segment import image_findings, load_predictor, mean_tumor_dice, predict_mask
 from app.synth import load_case, load_manifest
 
 OUT = ROOT / "spaces_static"
@@ -35,14 +35,14 @@ def png_b64(arr) -> str:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    mlp, _ = load_segmenter(ROOT / "models" / "segmenter.joblib")
+    mlp = load_predictor(ROOT / "models")
     lora = load_lora(ROOT / "models")
     index = GuidelineIndex()
     samples = []
     manifest = load_manifest(ROOT / "data" / "test")
     for meta in manifest[:4]:
         img, labels, m = load_case(ROOT / "data" / "test", meta["case_id"])
-        pred = predict_mask_mlp(mlp, img)
+        pred = predict_mask(mlp, img)
         findings = image_findings(pred)
         extracted = extract(lora, m["note"], findings)
         hits = index.search(index.query_for_case(m["note"], findings, extracted), k=3)

@@ -22,7 +22,7 @@ from app.eval_harness import run_harness
 from app.ground import assemble_ledger
 from app.lora_extract import extract, load_lora
 from app.rag import GuidelineIndex
-from app.segment import image_findings, load_segmenter, predict_mask_mlp
+from app.segment import image_findings, load_predictor, predict_mask
 from app.synth import SIZE, load_case, load_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,9 +68,8 @@ def decode_image(raw: bytes) -> np.ndarray:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    mlp, head = load_segmenter(MODELS / "segmenter.joblib")
-    STATE["mlp"] = mlp
-    STATE["head"] = head
+    STATE["model"] = load_predictor(MODELS)
+    STATE["mlp"] = STATE["model"]
     STATE["lora"] = load_lora(MODELS)
     STATE["index"] = GuidelineIndex()
     STATE["metrics"] = json.loads((MODELS / "metrics.json").read_text(encoding="utf-8")) if (MODELS / "metrics.json").exists() else {}
@@ -122,7 +121,7 @@ def sample(seed: int = 0):
 
 def _infer(image: np.ndarray, note: str) -> dict:
     t0 = time.perf_counter()
-    mask = predict_mask_mlp(STATE["mlp"], image)
+    mask = predict_mask(STATE["model"], image)
     findings = image_findings(mask)
     extracted = extract(STATE["lora"], note, findings)
     hits = STATE["index"].search(STATE["index"].query_for_case(note, findings, extracted), k=4)
@@ -181,5 +180,5 @@ def eval_run():
         rec["image"] = img
         rec["labels"] = labels
         cases.append(rec)
-    result = run_harness(cases, STATE["mlp"], STATE["lora"])
+    result = run_harness(cases, STATE["model"], STATE["lora"])
     return result.as_dict()

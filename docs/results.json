@@ -1,39 +1,39 @@
 {
   "harness": {
-    "dice": 0.2902573477649568,
+    "dice": 0.48164998289151173,
     "field_acc": {
-      "laterality": 0.925,
+      "laterality": 0.9583333333333334,
       "lobe": 1.0,
       "grade": 1.0,
       "enhancement": 1.0,
       "symptom": 1.0
     },
-    "field_acc_mean": 0.985,
-    "ndcg5": 0.8986902076195168,
+    "field_acc_mean": 0.9916666666666668,
+    "ndcg5": 0.8607683153073321,
     "recall5": 0.0,
-    "grounded_fraction": 0.4,
-    "contradiction_rate": 0.225,
+    "grounded_fraction": 0.39999999999999997,
+    "contradiction_rate": 0.10416666666666667,
     "ablation": {
-      "full_field_acc": 0.9850000000000001,
+      "full_field_acc": 0.9916666666666667,
       "no_image_field_acc": 1.0,
-      "no_rag_grounded_fraction": 0.355
+      "no_rag_grounded_fraction": 0.33749999999999997
     }
   },
-  "dice_mean": 0.2902573477649568,
+  "dice_mean": 0.48164998289151173,
   "dice_p10": 0.0,
-  "dice_p90": 0.6669752930888165,
+  "dice_p90": 0.8172327044025157,
   "latency": {
-    "n": 120,
-    "p50_ms": 33.1,
-    "p95_ms": 40.14,
-    "mean_ms": 33.85
+    "n": 144,
+    "p50_ms": 76.14,
+    "p95_ms": 86.97,
+    "mean_ms": 76.48
   },
   "example_case": "te-0002",
   "example_ledger": {
     "fields": {
       "laterality": {
         "value": "left",
-        "confidence": 0.886,
+        "confidence": 0.914,
         "provenance": "image",
         "evidence": [
           "mask centroid is on the left half of the slice",
@@ -42,13 +42,13 @@
       },
       "lobe": {
         "value": "unknown",
-        "confidence": 0.993,
+        "confidence": 0.995,
         "provenance": "ungrounded",
         "evidence": []
       },
       "grade": {
         "value": "unknown",
-        "confidence": 0.988,
+        "confidence": 0.987,
         "provenance": "ungrounded",
         "evidence": [
           "grade is not image-groundable from a single slice"
@@ -56,16 +56,16 @@
       },
       "enhancement": {
         "value": "yes",
-        "confidence": 0.989,
+        "confidence": 0.992,
         "provenance": "image",
         "evidence": [
-          "core fraction=0.00 volume_px=617",
+          "core fraction=0.00 volume_px=170",
           "supported by retrieved guideline span"
         ]
       },
       "symptom": {
         "value": "unknown",
-        "confidence": 0.989,
+        "confidence": 0.993,
         "provenance": "ungrounded",
         "evidence": []
       }
@@ -74,32 +74,32 @@
     "grounded_fraction": 0.4,
     "image_findings": {
       "laterality": "left",
-      "enhancement": "True",
-      "volume_proxy_px": 617,
+      "enhancement": true,
+      "volume_proxy_px": 170,
       "core_fraction": 0.0
     }
   },
   "example_hits": [
     {
+      "id": "imaging-t1c-flair",
+      "title": "T1c and FLAIR roles",
+      "score": 0.2761048094316695
+    },
+    {
       "id": "seizure-temporal",
       "title": "Seizure and temporal lobe",
-      "score": 0.17536268484042955
+      "score": 0.13663395837128736
+    },
+    {
+      "id": "who-cns-2021-lgg",
+      "title": "Lower-grade diffuse gliomas",
+      "score": 0.1310676297575488
     },
     {
       "id": "laterality-eloquent",
       "title": "Laterality and eloquent cortex",
-      "score": 0.1751376139761781
-    },
-    {
-      "id": "tumor-board",
-      "title": "Multidisciplinary glioma protocol",
-      "score": 0.17415645573798438
-    },
-    {
-      "id": "contradiction-policy",
-      "title": "Cross-modal contradiction policy",
-      "score": 0.13369416695871897
+      "score": 0.1198732161755977
     }
   ],
-  "example_note": "Neuro-oncology. Left-sided enhancing glioma on T1c. Grade, lobe, and presenting symptom are not specified in the record."
+  "example_note": "T1-post-contrast MRI. Enhancing mass left of midline, compatible with glioma. T1-weighted post-contrast enhancement. Histologic grade not assigned on this slice."
 }

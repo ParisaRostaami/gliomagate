@@ -21,7 +21,7 @@ from app.ground import assemble_ledger
 from app.lora_extract import extract, load_lora
 from app.main import overlay_rgb
 from app.rag import GuidelineIndex
-from app.segment import image_findings, load_segmenter, mean_tumor_dice, predict_mask_mlp
+from app.segment import image_findings, load_predictor, mean_tumor_dice, predict_mask
 from app.synth import load_case, load_manifest
 
 OUT = ROOT / "docs" / "figures"
@@ -63,7 +63,7 @@ def gallery(mlp, cases: list[dict], path: Path) -> None:
     pick = cases[:6]
     fig, axes = plt.subplots(3, 6, figsize=(14.5, 7.4))
     for j, rec in enumerate(pick):
-        pred = predict_mask_mlp(mlp, rec["image"])
+        pred = predict_mask(mlp, rec["image"])
         dice = mean_tumor_dice(pred, rec["labels"])
         axes[0, j].imshow(rec["image"], cmap="gray")
         axes[0, j].set_title(rec["case_id"], fontsize=9)
@@ -82,7 +82,7 @@ def gallery(mlp, cases: list[dict], path: Path) -> None:
 
 
 def dice_hist(mlp, cases: list[dict], path: Path) -> list[float]:
-    dices = [mean_tumor_dice(predict_mask_mlp(mlp, c["image"]), c["labels"]) for c in cases]
+    dices = [mean_tumor_dice(predict_mask(mlp, c["image"]), c["labels"]) for c in cases]
     fig, ax = plt.subplots(figsize=(6.4, 3.8))
     ax.hist(dices, bins=10, color="#355070", edgecolor="white")
     ax.axvline(float(np.mean(dices)), color="#e76f51", lw=2, label=f"mean {np.mean(dices):.2f}")
@@ -141,14 +141,14 @@ def ablation_chart(metrics: dict, path: Path) -> None:
 
 
 def latency_chart(path: Path) -> dict:
-    mlp, _ = load_segmenter(MODELS / "segmenter.joblib")
+    mlp = load_predictor(MODELS)
     lora = load_lora(MODELS)
     index = GuidelineIndex()
     cases = load_test_cases()
     times = []
     for rec in cases * 3:
         t0 = time.perf_counter()
-        pred = predict_mask_mlp(mlp, rec["image"])
+        pred = predict_mask(mlp, rec["image"])
         findings = image_findings(pred)
         extracted = extract(lora, rec["note"], findings)
         hits = index.search(index.query_for_case(rec["note"], findings, extracted), k=4)
@@ -172,7 +172,7 @@ def latency_chart(path: Path) -> dict:
 
 
 def ledger_figure(mlp, lora, rec: dict, path: Path) -> dict:
-    pred = predict_mask_mlp(mlp, rec["image"])
+    pred = predict_mask(mlp, rec["image"])
     findings = image_findings(pred)
     extracted = extract(lora, rec["note"], findings)
     index = GuidelineIndex()
@@ -222,9 +222,10 @@ def train_curves(path: Path) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(10.4, 3.8))
     mlp_loss = log["segmenter"]["loss_curve"]
     axes[0].plot(mlp_loss, color="#355070")
-    axes[0].set_title(f"Pixel MLP training loss ({log['segmenter']['n_iter']} iters)")
-    axes[0].set_xlabel("iteration")
-    axes[0].set_ylabel("cross-entropy")
+    title = log["segmenter"].get("name", "segmenter")
+    axes[0].set_title(f"{title} training loss")
+    axes[0].set_xlabel("epoch")
+    axes[0].set_ylabel("loss")
     for field, curve in log["lora"]["loss_curves"].items():
         axes[1].plot(curve, label=field)
     axes[1].set_title("LoRA student loss (sampled)")
@@ -254,7 +255,7 @@ def field_acc_chart(metrics: dict, path: Path) -> None:
 def main() -> None:
     _style()
     OUT.mkdir(parents=True, exist_ok=True)
-    mlp, _head = load_segmenter(MODELS / "segmenter.joblib")
+    mlp = load_predictor(MODELS)
     lora = load_lora(MODELS)
     cases = load_test_cases()
     metrics = json.loads((MODELS / "metrics.json").read_text(encoding="utf-8"))

@@ -11,7 +11,7 @@ I built this as a public slice-plus-note loop for neuro-oncology. Segmentation i
 
 ## Data
 
-Cheng 2017: 3064 T1c slices from 233 patients (meningioma / glioma / pituitary). This repo uses glioma only. Last run: **240 train / 40 test**, 128×128, patient-wise split. Masks are the published binary tumor outlines. Notes only state laterality and that the lesion is an enhancing glioma.
+Cheng 2017: 3064 T1c slices from 233 patients (meningioma / glioma / pituitary). This repo uses glioma only. Last run: **500 train / 48 test**, 128×128, patient-wise split (17 test patients). Masks are the published binary tumor outlines. Notes only state laterality and that the lesion is an enhancing glioma.
 
 ```text
 python scripts/download_cheng.py
@@ -22,26 +22,24 @@ Cheng, J. brain tumor dataset. Figshare 1512427. CC BY 4.0.
 
 ## Training
 
-**Segmenter.** Conv stem + per-pixel MLP, 208 iterations, CE 0.26 → 0.17. Train Dice **0.41** (n=240). This is a 2D pixel classifier, not a U-Net.
+**Segmenter.** 2D U-Net, ~1.9M parameters, 25 epochs, BCE+Dice, flips/rotations. Train Dice **0.52**. Weights: `models/unet.pt`.
 
-**Extractor.** Hash embeddings and rank-4 LoRA. Laterality on the held-out patients is **0.93**.
+**Extractor.** Hash embeddings and rank-4 LoRA. Laterality on the held-out patients is **0.96**.
 
 ![Training curves](docs/figures/train_curves.png)
 
-*Left: pixel MLP loss. Right: LoRA student loss.*
+*Left: U-Net epoch loss. Right: LoRA student loss.*
 
-## Held-out results (40 slices, 16 patients)
+## Held-out results (48 slices, 17 patients)
 
 From `models/metrics.json`.
 
 | Metric | Score |
 | --- | ---: |
-| Tumor Dice | 0.29 |
-| Laterality | 0.93 |
-| Contradiction rate (note vs mask laterality) | 0.23 |
-| p95 latency | 40 ms |
-
-Dice is low. The predicted overlays are noisy and often the wrong region. That is the current model.
+| Tumor Dice | 0.48 |
+| Laterality | 0.96 |
+| Contradiction rate (note vs mask laterality) | 0.10 |
+| p95 latency | 87 ms |
 
 ![Segmentation gallery](docs/figures/gallery.png)
 
@@ -85,7 +83,7 @@ docker run --rm -p 7860:7860 gliomagate
 app/            API, segmenter, LoRA, RAG, Cheng loader
 scripts/        download_cheng, train, figures, notebook
 docs/figures/   gallery from the Cheng held-out set
-models/         weights, train_log.json, metrics.json
+models/         unet.pt, LoRA adapters, train_log.json, metrics.json
 data/test/      held-out Cheng slices (after train)
 data/cheng_raw/ Figshare archives (gitignored)
 ```

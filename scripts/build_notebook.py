@@ -17,8 +17,8 @@ def cells() -> list:
         new_markdown_cell(
             """# GliomaGate
 
-Cheng 2017 T1-contrast glioma MRI (Figshare 1512427), patient-wise held-out slices.
-Weights from `python scripts/train.py`."""
+Cheng 2017 T1-contrast glioma MRI (Figshare 1512427). U-Net trained on held-out patients.
+Weights from `python scripts/train.py` (`models/unet.pt`)."""
         ),
         new_code_cell(
             """from pathlib import Path
@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 ROOT = Path.cwd() if (Path.cwd() / 'app').exists() else Path.cwd().parent
 sys.path.insert(0, str(ROOT))
 
-from app.segment import load_segmenter, predict_mask_mlp, mean_tumor_dice, image_findings
+from app.segment import load_predictor, predict_mask, mean_tumor_dice, image_findings
 from app.lora_extract import load_lora, extract
 from app.rag import GuidelineIndex
 from app.ground import assemble_ledger
@@ -39,7 +39,7 @@ from app.eval_harness import run_harness
 
 MODELS = ROOT / 'models'
 TEST = ROOT / 'data' / 'test'
-mlp, _ = load_segmenter(MODELS / 'segmenter.joblib')
+mlp = load_predictor(MODELS)
 lora = load_lora(MODELS)
 cases = []
 for meta in load_manifest(TEST):
@@ -50,7 +50,10 @@ for meta in load_manifest(TEST):
     cases.append(rec)
 log = json.loads((MODELS / 'train_log.json').read_text())
 print(len(cases), 'test cases')
-print('MLP', log['segmenter']['n_iter'], 'iters, final CE', round(log['segmenter']['final_loss'], 4),
+print(log['segmenter'].get('name', 'segmenter'),
+      'epochs', log['segmenter'].get('epochs') or log['segmenter'].get('n_iter'),
+      'params', log['segmenter'].get('params'),
+      'final loss', round(float(log['segmenter'].get('final_loss', log['segmenter']['loss_curve'][-1])), 4),
       'train Dice', round(log['segmenter']['train_dice'], 3))
 print('LoRA train', {k: round(v, 3) for k, v in log['lora']['train_field_acc'].items()})
 print('LoRA test ', {k: round(v, 3) for k, v in log['lora']['test_field_acc'].items()})"""
@@ -59,9 +62,9 @@ print('LoRA test ', {k: round(v, 3) for k, v in log['lora']['test_field_acc'].it
         new_code_cell(
             """fig, axes = plt.subplots(1, 2, figsize=(10.4, 3.6))
 axes[0].plot(log['segmenter']['loss_curve'], color='#355070')
-axes[0].set_title('pixel MLP')
-axes[0].set_xlabel('iteration')
-axes[0].set_ylabel('cross-entropy')
+axes[0].set_title(log['segmenter'].get('name', 'U-Net'))
+axes[0].set_xlabel('epoch')
+axes[0].set_ylabel('loss')
 for field, curve in log['lora']['loss_curves'].items():
     axes[1].plot(curve, label=field)
 axes[1].set_title('LoRA student')
@@ -75,7 +78,7 @@ T1-weighted post-contrast slice and the published tumor mask."""
         ),
         new_code_cell(
             """rec = cases[2]
-pred = predict_mask_mlp(mlp, rec['image'])
+pred = predict_mask(mlp, rec['image'])
 fig, ax = plt.subplots(1, 3, figsize=(10.5, 3.4))
 ax[0].imshow(rec['image'], cmap='gray')
 ax[0].set_title('slice')
@@ -93,7 +96,7 @@ print(rec['note'])"""
         new_code_cell(
             """fig, axes = plt.subplots(2, 4, figsize=(12, 6.2))
 for i, rec in enumerate(cases[:4]):
-    pred = predict_mask_mlp(mlp, rec['image'])
+    pred = predict_mask(mlp, rec['image'])
     axes[0, i].imshow(rec['image'], cmap='gray')
     axes[0, i].set_title(rec['case_id'])
     axes[0, i].axis('off')
@@ -104,7 +107,7 @@ axes[0, 0].set_ylabel('input')
 axes[1, 0].set_ylabel('overlay')
 plt.show()
 
-dices = [mean_tumor_dice(predict_mask_mlp(mlp, c['image']), c['labels']) for c in cases]
+dices = [mean_tumor_dice(predict_mask(mlp, c['image']), c['labels']) for c in cases]
 fig, ax = plt.subplots(figsize=(6.5, 3.6))
 ax.hist(dices, bins=10, color='#355070', edgecolor='white')
 ax.axvline(np.mean(dices), color='#e76f51', lw=2, label=f'mean {np.mean(dices):.3f}')
@@ -121,7 +124,7 @@ Laterality / enhancement can be supported by the mask. Grade can only be support
         ),
         new_code_cell(
             """rec = cases[2]
-pred = predict_mask_mlp(mlp, rec['image'])
+pred = predict_mask(mlp, rec['image'])
 findings = image_findings(pred)
 extracted = extract(lora, rec['note'], findings)
 index = GuidelineIndex()
@@ -165,7 +168,7 @@ plt.show()"""
             """lat = []
 for rec in cases:
     t0 = time.perf_counter()
-    pred = predict_mask_mlp(mlp, rec['image'])
+    pred = predict_mask(mlp, rec['image'])
     f = image_findings(pred)
     ex = extract(lora, rec['note'], f)
     ht = index.search(index.query_for_case(rec['note'], f, ex), k=4)

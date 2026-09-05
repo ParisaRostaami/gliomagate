@@ -9,7 +9,7 @@ import numpy as np
 from .ground import assemble_ledger
 from .lora_extract import extract
 from .rag import GUIDELINES, GuidelineIndex, ndcg_at_k, relevance
-from .segment import image_findings, mean_tumor_dice, predict_mask_mlp
+from .segment import image_findings, mean_tumor_dice, predict_mask
 
 
 @dataclass
@@ -33,7 +33,7 @@ def _field_value(gold: dict, field: str) -> str:
     return str(gold[field])
 
 
-def run_harness(cases: list[dict], mlp, lora_heads) -> HarnessResult:
+def run_harness(cases: list[dict], model, lora_heads) -> HarnessResult:
     index = GuidelineIndex()
     dices = []
     hits_acc = {k: [] for k in ("laterality", "lobe", "grade", "enhancement", "symptom")}
@@ -54,7 +54,7 @@ def run_harness(cases: list[dict], mlp, lora_heads) -> HarnessResult:
 
     for rec in cases:
         img, mask = rec["image"], rec["labels"]
-        pred = predict_mask_mlp(mlp, img)
+        pred = predict_mask(model, img)
         dices.append(mean_tumor_dice(pred, mask))
         findings = image_findings(pred)
         extracted = extract(lora_heads, rec["note"], findings)
